@@ -49,6 +49,13 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
 .btn.small{padding:7px 10px;font-size:14px}
 .btn.danger{color:var(--bad)}
+.sec>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;min-height:28px}
+.sec>summary::-webkit-details-marker{display:none}
+.sec>summary h2{margin:0}
+.sec[open]>summary{margin-bottom:12px}
+.chev{width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .15s;margin:0 4px 3px 0;flex:none}
+.sec[open]>summary .chev{transform:rotate(-135deg);margin-bottom:-3px}
+details.help>summary{cursor:pointer;color:var(--muted);font-size:14px;margin-top:10px}
 .btn:active{transform:translateY(1px)}
 .date{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .date strong{font-family:var(--display);font-size:22px;letter-spacing:.02em}
@@ -98,8 +105,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mu
 video{width:100%;border-radius:10px;background:#000;max-height:260px;object-fit:cover}
 nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);
   padding:8px max(8px,env(safe-area-inset-left,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-right,0px));z-index:5}
-nav .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
-nav button{border:0;background:transparent;padding:9px 2px;border-radius:10px;font-weight:600;font-size:12px;color:var(--muted);cursor:pointer;min-width:0}
+nav .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr);gap:2px}
+nav button{border:0;background:transparent;padding:9px 1px;border-radius:10px;font-weight:600;font-size:11px;color:var(--muted);cursor:pointer;min-width:0}
 nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));
   background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9;max-width:90vw;text-align:center}
@@ -155,13 +162,18 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
         <button class="btn" onclick="clearDraft()">Leeren</button>
       </div>
       <p id="voiceStat" class="muted" style="margin:8px 0 0" aria-live="polite"></p>
-      <p class="muted" style="margin:10px 0 0">Mehrere Zutaten mit Komma trennen. Einheiten: g, kg, ml, l, EL, TL. Per 🎤 kannst du die Mahlzeit einsprechen, z. B. „hundert Gramm Magerquark und zwei Eier“. Ohne Einheit zählen Eier als Stück, alles andere als Gramm. Gespeicherte Routinen lädst du über den Namen, z. B. „Cappuccino“ oder „2x Cappuccino“.</p>
+      <details class="help"><summary>Eingabe-Hilfe</summary><p class="muted" style="margin:8px 0 0">Mehrere Zutaten mit Komma trennen. Mengen: 250 g, 2 EL, 1/2 Apfel, 10 Weintrauben, 1 Scheibe Brot. Einheiten: g, kg, ml, l, EL, TL. Per 🎤 einsprechen, z. B. „eine halbe Banane und zwei Eier“. Routinen und Rezepte lädst du über den Namen, z. B. „2x Cappuccino“ oder „1/4 Kuchen“.</p></details>
     </div>
 
     <div id="draftBox"></div>
 
-    <div class="card">
-      <h2>Routinen</h2>
+    <details class="card sec" id="sec-quick" open ontoggle="secTg(this)">
+      <summary><h2>Schnellwahl</h2><span class="chev" aria-hidden="true"></span></summary>
+      <div id="quickBox" class="chips"></div>
+    </details>
+
+    <details class="card sec" id="sec-routines" ontoggle="secTg(this)">
+      <summary><h2>Routinen</h2><span class="chev" aria-hidden="true"></span></summary>
       <div id="routineChips" class="row"></div>
       <details style="margin-top:12px" open>
         <summary class="muted" style="cursor:pointer">Neue Routine aus Zutaten</summary>
@@ -184,15 +196,10 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
         <p class="muted" style="margin:8px 0 0">Werte für eine ganze Portion. Die Menge 1 steht später für eine Portion, 2 für zwei.</p>
         <button class="btn primary" style="margin-top:10px;width:100%" onclick="saveFixedRoutine()">Routine speichern</button>
       </details>
-    </div>
+    </details>
 
-    <div class="card">
-      <h2>Schnellwahl</h2>
-      <div id="quickBox" class="chips"></div>
-    </div>
-
-    <div class="card" id="newFoodCard">
-      <h2>Neues Lebensmittel</h2>
+    <details class="card sec" id="newFoodCard" ontoggle="secTg(this)">
+      <summary><h2>Neues Lebensmittel</h2><span class="chev" aria-hidden="true"></span></summary>
       <h3>Open Food Facts</h3>
       <div class="row">
         <input class="grow" id="offQ" placeholder="Name suchen, z. B. Skyr" enterkeyhint="search" onkeydown="if(event.key==='Enter')offSearch()">
@@ -221,7 +228,27 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
         <label class="f">Fett (g)<input id="mF" inputmode="decimal"></label>
       </div>
       <button class="btn primary" style="margin-top:10px;width:100%" onclick="saveManual()">Speichern und zur Mahlzeit</button>
-    </div>
+    </details>
+  </section>
+
+  <!-- REZEPTE -->
+  <section id="tab-recipes" hidden>
+    <details class="card sec" id="sec-rlist" open ontoggle="secTg(this)">
+      <summary><h2>Meine Rezepte</h2><span class="chev" aria-hidden="true"></span></summary>
+      <div id="recipeList" class="list"></div>
+    </details>
+    <details class="card sec" id="sec-rnew" open ontoggle="secTg(this)">
+      <summary><h2>Neues Rezept</h2><span class="chev" aria-hidden="true"></span></summary>
+      <div class="grid4">
+        <label class="f" style="grid-column:1/-1">Name<input id="rcName" placeholder="z. B. Johannisbeerkuchen"></label>
+        <label class="f" style="grid-column:1/-1">Zutaten (gesamt)<textarea id="rcText" rows="4" placeholder="z. B. 300 g Mehl, 150 g Zucker, 3 Eier, 125 g Butter, 400 g Johannisbeeren"></textarea></label>
+        <label class="f">Anzahl<input id="rcPortions" inputmode="numeric" placeholder="z. B. 12"></label>
+        <label class="f">Einheit<select id="rcUnit"><option>Stück</option><option>Scheibe</option><option>Portion</option></select></label>
+        <label class="f" style="grid-column:1/-1">Fertiggewicht in g (optional)<input id="rcYield" inputmode="decimal" placeholder="z. B. 1200"></label>
+      </div>
+      <p class="muted" style="margin:8px 0 0">Gib alle Zutaten für das ganze Rezept ein und in wie viele Stücke oder Scheiben es geteilt wird. Danach schreibst du in der Mahlzeit z. B. „1 Stück Kuchen“, „1/4 Kuchen“ oder „1 Scheibe Brot“. Mit dem Fertiggewicht kannst du auch Gramm angeben, z. B. „150 g Kuchen“.</p>
+      <div class="row" style="margin-top:10px"><button class="btn primary grow" onclick="buildRecipe()">Zutaten berechnen</button><button class="btn" data-l="🎤 Sprechen" onclick="voiceInput('rcText',this)">🎤 Sprechen</button></div>
+    </details>
   </section>
 
   <!-- DATENBANK -->
@@ -301,6 +328,7 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
 <nav><div class="in" id="nav">
   <button data-tab="today" aria-current="page" onclick="show('today')">Heute</button>
   <button data-tab="add" onclick="show('add')">Hinzufügen</button>
+  <button data-tab="recipes" onclick="show('recipes')">Rezepte</button>
   <button data-tab="db" onclick="show('db')">Datenbank</button>
   <button data-tab="stats" onclick="show('stats')">Verlauf</button>
   <button data-tab="goals" onclick="show('goals')">Ziele</button>
@@ -388,11 +416,95 @@ var BASE=[
  {n:'Vollkornbrötchen',k:245,p:9.5,c:42,f:2.5,piece:60,e:1,a:['vollkornbrötchen','körnerbrötchen']},
  {n:'Mischbrot',k:225,p:7,c:44,f:1.2,piece:50,e:1,a:['brot','mischbrot','graubrot','scheibe brot']},
  {n:'Vollkornbrot',k:205,p:7.5,c:37,f:1.5,piece:50,e:1,a:['vollkornbrot','schwarzbrot','roggenbrot']},
- {n:'Toastbrot',k:265,p:8,c:49,f:3.5,piece:25,e:1,a:['toast','toastbrot']}
+ {n:'Toastbrot',k:265,p:8,c:49,f:3.5,piece:25,e:1,a:['toast','toastbrot']},
+ {n:'Apfel',k:52,p:0.3,c:11.4,f:0.4,piece:170,a:['apfel','äpfel','aepfel']},
+ {n:'Birne',k:55,p:0.4,c:12.4,f:0.3,piece:170,a:['birne','birnen']},
+ {n:'Banane',k:93,p:1.1,c:20,f:0.2,piece:110,a:['banane','bananen']},
+ {n:'Orange',k:47,p:0.9,c:9.4,f:0.2,piece:150,a:['orange','orangen','apfelsine']},
+ {n:'Mandarine / Clementine',k:46,p:0.7,c:9.9,f:0.2,piece:70,a:['mandarine','mandarinen','clementine','clementinen']},
+ {n:'Zitrone',k:30,p:0.7,c:3.1,f:0.6,piece:80,a:['zitrone','zitronen']},
+ {n:'Grapefruit',k:42,p:0.8,c:8.9,f:0.2,piece:250,a:['grapefruit','pampelmuse']},
+ {n:'Kiwi',k:61,p:1.1,c:11.1,f:0.6,piece:70,a:['kiwi','kiwis']},
+ {n:'Weintrauben',k:70,p:0.7,c:16,f:0.2,piece:5,a:['weintrauben','weintraube','trauben','traube']},
+ {n:'Erdbeeren',k:32,p:0.7,c:5.5,f:0.4,piece:15,a:['erdbeeren','erdbeere']},
+ {n:'Himbeeren',k:43,p:1.3,c:4.8,f:0.3,piece:4,a:['himbeeren','himbeere']},
+ {n:'Heidelbeeren / Blaubeeren',k:42,p:0.6,c:9,f:0.6,piece:2,a:['heidelbeeren','heidelbeere','blaubeeren','blaubeere']},
+ {n:'Brombeeren',k:43,p:1.4,c:4.9,f:0.5,piece:5,a:['brombeeren','brombeere']},
+ {n:'Johannisbeeren',k:41,p:1.1,c:7.3,f:0.2,piece:1,a:['johannisbeeren','johannisbeere']},
+ {n:'Kirschen',k:63,p:1.1,c:13.8,f:0.3,piece:8,a:['kirschen','kirsche']},
+ {n:'Pflaume / Zwetschge',k:47,p:0.7,c:10.2,f:0.2,piece:40,a:['pflaume','pflaumen','zwetschge','zwetschgen']},
+ {n:'Pfirsich / Nektarine',k:42,p:0.9,c:9,f:0.2,piece:140,a:['pfirsich','pfirsiche','nektarine','nektarinen']},
+ {n:'Aprikose',k:43,p:0.9,c:9,f:0.1,piece:45,a:['aprikose','aprikosen','marille']},
+ {n:'Mango',k:62,p:0.6,c:13.4,f:0.3,piece:200,a:['mango','mangos']},
+ {n:'Ananas',k:55,p:0.5,c:12,f:0.2,a:['ananas']},
+ {n:'Wassermelone',k:36,p:0.6,c:7.5,f:0.2,a:['wassermelone']},
+ {n:'Honigmelone',k:54,p:0.8,c:12,f:0.1,a:['honigmelone','cantaloupe','melone']},
+ {n:'Granatapfel',k:83,p:1.7,c:18.7,f:1.2,piece:100,a:['granatapfel']},
+ {n:'Feige (frisch)',k:64,p:0.9,c:13.9,f:0.4,piece:50,a:['feige','feigen']},
+ {n:'Avocado',k:160,p:2,c:2,f:14.7,piece:140,a:['avocado','avocados']},
+ {n:'Datteln (getrocknet)',k:280,p:2.5,c:65,f:0.4,piece:8,a:['datteln','dattel']},
+ {n:'Rosinen',k:300,p:2.5,c:66,f:0.5,a:['rosinen']},
+ {n:'Aprikosen (getrocknet)',k:240,p:3.4,c:50,f:0.5,piece:8,a:['trockenaprikosen','getrocknete aprikosen']},
+ {n:'Tomate',k:18,p:0.9,c:2.6,f:0.2,piece:100,a:['tomate','tomaten']},
+ {n:'Cherrytomaten',k:18,p:0.9,c:2.6,f:0.2,piece:15,a:['cherrytomaten','cherrytomate','kirschtomaten','cocktailtomaten']},
+ {n:'Gurke',k:12,p:0.6,c:1.8,f:0.2,piece:300,a:['gurke','gurken','salatgurke']},
+ {n:'Paprika (rot)',k:37,p:1.3,c:6.4,f:0.4,piece:160,a:['paprika','paprikaschote']},
+ {n:'Zucchini',k:19,p:1.6,c:2,f:0.4,piece:250,a:['zucchini']},
+ {n:'Aubergine',k:24,p:1.2,c:2.5,f:0.2,piece:250,a:['aubergine','auberginen']},
+ {n:'Brokkoli',k:34,p:3.5,c:2.5,f:0.3,a:['brokkoli','broccoli']},
+ {n:'Blumenkohl',k:25,p:2.5,c:2.3,f:0.3,a:['blumenkohl']},
+ {n:'Karotte / Möhre',k:36,p:0.9,c:7,f:0.2,piece:70,a:['karotte','karotten','möhre','möhren','mohrrübe']},
+ {n:'Zwiebel',k:32,p:1.2,c:5.5,f:0.2,piece:80,a:['zwiebel','zwiebeln']},
+ {n:'Frühlingszwiebel',k:28,p:1.8,c:3.7,f:0.4,piece:15,a:['frühlingszwiebel','frühlingszwiebeln','lauchzwiebel']},
+ {n:'Knoblauch',k:140,p:6,c:28,f:0.5,piece:4,a:['knoblauch','knoblauchzehe']},
+ {n:'Spinat',k:23,p:2.7,c:0.8,f:0.4,a:['spinat','blattspinat']},
+ {n:'Kopfsalat / Eisbergsalat',k:14,p:1.3,c:1.1,f:0.2,a:['salat','kopfsalat','eisbergsalat','blattsalat','römersalat']},
+ {n:'Rucola',k:27,p:2.6,c:2.1,f:0.7,a:['rucola','rauke']},
+ {n:'Champignons',k:22,p:2.7,c:0.5,f:0.3,piece:20,a:['champignons','champignon','pilze','pilz']},
+ {n:'Spargel',k:20,p:2.2,c:2,f:0.2,a:['spargel']},
+ {n:'Süßkartoffel',k:86,p:1.6,c:20,f:0.1,piece:200,a:['süßkartoffel','süsskartoffel','süßkartoffeln']},
+ {n:'Kürbis (Hokkaido)',k:30,p:1.1,c:5,f:0.2,a:['kürbis','hokkaido']},
+ {n:'Rote Bete',k:42,p:1.5,c:8.5,f:0.1,a:['rote bete','rote beete','rotebete']},
+ {n:'Kohlrabi',k:25,p:1.7,c:3.7,f:0.1,piece:150,a:['kohlrabi']},
+ {n:'Weißkohl / Rotkohl',k:25,p:1.4,c:4.3,f:0.2,a:['kohl','weißkohl','rotkohl','spitzkohl']},
+ {n:'Rosenkohl',k:36,p:4.5,c:3.3,f:0.3,a:['rosenkohl']},
+ {n:'Lauch / Porree',k:30,p:2.1,c:3.3,f:0.3,a:['lauch','porree']},
+ {n:'Fenchel',k:20,p:1.2,c:2.4,f:0.2,a:['fenchel']},
+ {n:'Radieschen',k:14,p:1,c:1.9,f:0.1,piece:10,a:['radieschen']},
+ {n:'Sellerie',k:25,p:1.5,c:2.3,f:0.3,a:['sellerie','knollensellerie']},
+ {n:'Erbsen (gekocht)',k:70,p:5.5,c:10,f:0.4,a:['erbsen','erbse']},
+ {n:'Grüne Bohnen',k:30,p:2.4,c:3.3,f:0.2,a:['grüne bohnen','bohnen','brechbohnen']},
+ {n:'Mais (Dose)',k:90,p:3,c:16,f:1.2,a:['mais','maiskörner']},
+ {n:'Weizenmehl',k:340,p:10,c:70,f:1,a:['mehl','weizenmehl','dinkelmehl','mehl type 405']},
+ {n:'Butter',k:740,p:0.7,c:0.6,f:83,a:['butter']},
+ {n:'Öl (Raps/Oliven)',k:900,p:0,c:0,f:100,a:['öl','olivenöl','rapsöl','sonnenblumenöl','speiseöl']},
+ {n:'Puderzucker',k:400,p:0,c:100,f:0,a:['puderzucker','vanillezucker']},
+ {n:'Honig',k:300,p:0.4,c:75,f:0,a:['honig']},
+ {n:'Marmelade',k:250,p:0.4,c:60,f:0.1,a:['marmelade','konfitüre','gelee']},
+ {n:'Speisestärke',k:350,p:0.5,c:86,f:0.1,a:['speisestärke','stärke','maisstärke','puddingpulver']},
+ {n:'Schlagsahne (30 %)',k:290,p:2.4,c:3.3,f:30,a:['sahne','schlagsahne','schlagobers']},
+ {n:'Joghurt (3.5 %)',k:65,p:3.5,c:4.7,f:3.8,a:['joghurt','naturjoghurt']},
+ {n:'Skyr',k:63,p:11,c:4,f:0.2,a:['skyr']},
+ {n:'Quark 40 %',k:160,p:11,c:3,f:11,a:['speisequark','quark 40','sahnequark']},
+ {n:'Frischkäse natur',k:250,p:6,c:4,f:23,a:['frischkäse','philadelphia']},
+ {n:'Gouda / Schnittkäse',k:360,p:25,c:0,f:28,a:['gouda','käse','schnittkäse','emmentaler','edamer']},
+ {n:'Mozzarella',k:250,p:18,c:1,f:19,a:['mozzarella']},
+ {n:'Parmesan',k:400,p:36,c:0,f:28,a:['parmesan','parmigiano']},
+ {n:'Feta',k:260,p:17,c:1,f:21,a:['feta','schafskäse']},
+ {n:'Mandeln',k:575,p:21,c:10,f:50,a:['mandeln','mandel','gemahlene mandeln']},
+ {n:'Walnüsse',k:690,p:15,c:7,f:65,a:['walnüsse','walnuss','walnusskerne']},
+ {n:'Haselnüsse',k:640,p:14,c:10,f:61,a:['haselnüsse','haselnuss']},
+ {n:'Erdnussmus',k:600,p:25,c:12,f:50,a:['erdnussmus','erdnussbutter','peanutbutter']},
+ {n:'Zartbitterschokolade',k:540,p:6,c:45,f:35,a:['schokolade','zartbitterschokolade','zartbitter','kuvertüre']},
+ {n:'Kakaopulver',k:360,p:20,c:12,f:12,a:['kakao','kakaopulver','backkakao']},
+ {n:'Nudeln (ungekocht)',k:355,p:12.5,c:70,f:1.5,a:['nudeln','pasta','spaghetti','penne','fusilli']},
+ {n:'Tomatenmark',k:80,p:4.5,c:12,f:0.5,a:['tomatenmark']},
+ {n:'Passierte Tomaten',k:30,p:1.5,c:5,f:0.2,a:['passierte tomaten','tomatensoße','tomatensauce']},
+ {n:'Haferdrink',k:45,p:0.5,c:7.5,f:1.5,a:['haferdrink','hafermilch']}
 ];
 function defaultState(){
   var t={};for(var m in MODES){t[m]={k:MODES[m].k,p:MODES[m].p,c:MODES[m].c,f:MODES[m].f}}
-  return {mode:'recomp',targets:t,db:[],routines:[],recent:[],favs:[],body:{},hide:[],meta:{lastBackup:0,snooze:0},log:{}};
+  return {mode:'recomp',targets:t,db:[],routines:[],recipes:[],ui:{sec:{}},recent:[],favs:[],body:{},hide:[],meta:{lastBackup:0,snooze:0},log:{}};
 }
 var S=defaultState();
 try{var raw=localStorage.getItem('makro-tracker-v1');if(raw){S=Object.assign(defaultState(),JSON.parse(raw))}}catch(e){}
@@ -423,12 +535,13 @@ function dayTotals(key){
 
 /* ---------- Tabs ---------- */
 function show(tab){
-  ['today','add','db','stats','goals'].forEach(function(t){$('#tab-'+t).hidden=(t!==tab)});
+  ['today','add','recipes','db','stats','goals'].forEach(function(t){$('#tab-'+t).hidden=(t!==tab)});
   document.querySelectorAll('#nav button').forEach(function(b){
     if(b.dataset.tab===tab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
   });
   if(tab==='today')renderToday();
-  if(tab==='add'){renderDraft();renderRoutineChips();renderQuick()}
+  if(tab==='add'){initSecs();renderDraft();renderRoutineChips();renderQuick()}
+  if(tab==='recipes'){initSecs();renderRecipes()}
   if(tab==='db'){renderDb();renderRoutineList()}
   if(tab==='stats')renderStats();
   if(tab==='goals')renderGoals();
@@ -560,18 +673,20 @@ function findFood(q){
 }
 function parseMeal(text){
   var parts=text.split(/\n|;|\+|(?<!\d),(?!\d)|\sund\s|\s&\s/i).map(function(s){return s.trim()}).filter(Boolean);
-  var re1=/^(\d+(?:[.,]\d+)?)\s*(?:(kg|gr|g|ml|el|tl|l|stk|stück|x)(?![a-zäöüß]))?\.?\s*(.+)$/i;
-  var re2=/^(.+?)\s+(\d+(?:[.,]\d+)?)\s*(?:(kg|gr|g|ml|el|tl|l|stk|stück)(?![a-zäöüß]))?$/i;
+  var re1=new RegExp('^('+QTY_NC+')\\s*(?:('+UNITS+')(?![a-zäöüß]))?\\.?\\s*(.+)$','i');
+  var re2=new RegExp('^(.+?)\\s+('+QTY_NC+')\\s*(?:('+UNITS2+')(?![a-zäöüß]))?$','i');
   var res={items:[],missing:[]};
   parts.forEach(function(p){
     p=p.replace(/^[\/@]\s*/,'');
     var rx=findRoutine(p,true),mult=1;
-    if(!rx){var mm=p.match(/^(\d+(?:[.,]\d+)?)\s*x?\s+(.+)$/i);if(mm){var r2=findRoutine(mm[2],true);if(r2){rx=r2;mult=num(mm[1])||1}}}
+    if(!rx){var mm=p.match(new RegExp('^('+QTY_NC+')\\s*x?\\s+(.+)$','i'));if(mm){var r2=findRoutine(mm[2],true);if(r2){rx=r2;mult=parseQty(mm[1])||1}}}
     if(rx){rx.items.forEach(function(it){res.items.push({food:Object.assign({},it.food),g:it.g*mult,routine:rx.name})});return}
+    var rcp=matchRecipe(p);
+    if(rcp){res.items.push(recipeItem(rcp.r,rcp.frac));return}
     var name,qty=null,unit='';
     var m=p.match(re1);
-    if(m){qty=num(m[1]);unit=(m[2]||'').toLowerCase();name=m[3]}
-    else{var m2=p.match(re2);if(m2){name=m2[1];qty=num(m2[2]);unit=(m2[3]||'').toLowerCase()}else name=p}
+    if(m){qty=parseQty(m[1]);unit=(m[2]||'').toLowerCase();name=m[3]}
+    else{var m2=p.match(re2);if(m2){name=m2[1];qty=parseQty(m2[2]);unit=(m2[3]||'').toLowerCase()}else name=p}
     name=name.replace(/^(x|von|vom)\s+/i,'').trim();
     var fd=findFood(name);
     var g;
@@ -594,7 +709,7 @@ function calcMeal(){
 }
 var lastCalcText='';
 function finishMeal(){
-  if(rbMode){toast('Routine unten über „Speichern“ sichern');return}
+  if(rbMode||rcMode){toast(rcMode?'Rezept unten über „Rezept speichern“ sichern':'Routine unten über „Speichern“ sichern');return}
   var txt=($('#mealText').value||'').trim();
   if(!draft.length&&!txt){toast('Bitte eine Mahlzeit eingeben');return}
   if(!draft.length){calcMeal();if(!draft.length||missing.length){if(!missing.length)toast('Nichts erkannt');return}}
@@ -603,19 +718,19 @@ function finishMeal(){
   addToDay();
 }
 var routineName='',rbMode=false;
-function clearDraft(){routineName='';rbMode=false;draft=[];missing=[];$('#mealText').value='';$('#sugBox').innerHTML='';renderDraft()}
+function clearDraft(){routineName='';rbMode=false;rcMode=false;rcForm=null;draft=[];missing=[];$('#mealText').value='';$('#sugBox').innerHTML='';renderDraft()}
 var sugState={base:'',list:[]};
 function suggest(){
   var box=$('#sugBox');if(!box)return;
   var v=$('#mealText').value;
   var idx=Math.max(v.lastIndexOf(','),v.lastIndexOf(';'),v.lastIndexOf('+'),v.lastIndexOf('\n'));
   var tok=v.slice(idx+1);
-  var m=tok.match(/^(\s*[\/@]?\s*(?:\d+(?:[.,]\d+)?\s*(?:(?:kg|gr|g|ml|el|tl|l|stk|stück|x)(?![a-zäöüß]))?\s*)?)(.*)$/i);
+  var m=tok.match(new RegExp('^(\\s*[\\/@]?\\s*(?:(?:'+QTY_NC+')\\s*(?:(?:'+UNITS+')(?![a-zäöüß]))?\\s*)?)(.*)$','i'));
   var q=(m?m[2]:tok).trim().toLowerCase();
   if(q.length<2){box.innerHTML='';sugState.list=[];return}
   var out=[];
   function add(n,rank){if(out.some(function(o){return o.n===n}))return;out.push({n:n,r:rank})}
-  S.routines.forEach(function(r){var n=r.name.toLowerCase();if(n.indexOf(q)===0)add(r.name,0);else if(n.indexOf(q)>-1)add(r.name,2)});
+  S.routines.concat(S.recipes||[]).forEach(function(r){var n=r.name.toLowerCase();if(n.indexOf(q)===0)add(r.name,0);else if(n.indexOf(q)>-1)add(r.name,2)});
   allFoods().forEach(function(f){
     var terms=[f.n.toLowerCase()].concat((f.a||[]).map(function(x){return x.toLowerCase()})),rank=9;
     terms.forEach(function(t){if(t.indexOf(q)===0)rank=Math.min(rank,1);else if(t.indexOf(q)>-1)rank=Math.min(rank,3)});
@@ -644,11 +759,13 @@ function renderDraft(){
     h+='<div class="card"><h2>Nährwert-Check</h2><div class="scroll"><table class="tbl"><thead><tr><th>Zutat</th><th>g</th><th>kcal</th><th>P</th><th>C</th><th>F</th><th></th></tr></thead><tbody>'+
     draft.map(function(d,i){var c=rows[i];
       return '<tr><td>'+esc(d.food.n)+(d.food.e?' ~':'')+'</td><td><input inputmode="decimal" value="'+f1(d.g).replace('.','')+'" onchange="setG('+i+',this.value)" aria-label="Gramm"></td><td>'+f0(c.k)+'</td><td>'+f1(c.p)+'</td><td>'+f1(c.c)+'</td><td>'+f1(c.f)+'</td><td><button class="btn small" onclick="rmDraft('+i+')" aria-label="Entfernen">×</button></td></tr>'}).join('')+
-    '</tbody><tfoot><tr><td>Summe</td><td></td><td>'+f0(t.k)+'</td><td>'+f1(t.p)+'</td><td>'+f1(t.c)+'</td><td>'+f1(t.f)+'</td><td></td></tr></tfoot></table></div><div class="row" style="margin-top:12px"><input class="grow" id="rName" placeholder="Als Routine speichern, z. B. Frühstück"><button class="btn" onclick="saveRoutineFromDraft()">Speichern</button></div></div>';
-    h+='<button class="btn primary" style="width:100%;margin:0 0 12px" onclick="addToDay()">Zu heute hinzufügen</button>';
+    '</tbody><tfoot><tr><td>Summe</td><td></td><td>'+f0(t.k)+'</td><td>'+f1(t.p)+'</td><td>'+f1(t.c)+'</td><td>'+f1(t.f)+'</td><td></td></tr></tfoot></table></div>'+(rcMode?rcRow():'<div class="row" style="margin-top:12px"><input class="grow" id="rName" placeholder="Als Routine speichern, z. B. Frühstück"><button class="btn" onclick="saveRoutineFromDraft()">Speichern</button></div>')+'</div>';
+    if(!rcMode)h+='<button class="btn primary" style="width:100%;margin:0 0 12px" onclick="addToDay()">Zu heute hinzufügen</button>';
     var key=dayKey(new Date()),tg=target(),tot=sum([dayTotals(key),t]);
+    if(!rcMode){
     h+='<div class="card"><h2>Tagesstatus inkl. Mahlzeit</h2>'+statusTable(tot,tg)+estNote(dayEst(key)+draft.reduce(function(a,d,i){return a+(d.food.e?rows[i].k:0)},0),tot.k)+'</div>';
     h+='<div class="card"><h2>Taktischer Status</h2><div class="fb">'+fbHtml(feedback(tot,tg))+'</div></div>';
+    }
   }
   if(missing.length){
     h+='<div class="card"><h2>Nicht gefunden</h2><div class="list">'+missing.map(function(m,i){
@@ -662,7 +779,7 @@ function addToDay(){
   var items=draft.map(function(d){var c=calc(d.food,d.g);return {n:d.food.n,g:d.g,k:c.k,p:c.p,c:c.c,f:c.f,e:d.food.e?1:0}});
   var key=dayKey(new Date());
   (S.log[key]=S.log[key]||[]).push({id:newMealId(),t:nowTime(),items:items});
-  noteRecent(draft);save();routineName='';rbMode=false;draft=[];missing=[];$('#mealText').value='';viewDay=new Date();
+  noteRecent(draft);save();routineName='';rbMode=false;rcMode=false;draft=[];missing=[];$('#mealText').value='';viewDay=new Date();
   show('today');toast('Mahlzeit gespeichert');
 }
 
@@ -775,7 +892,7 @@ function numWord(t){
   return nwSub(s);
 }
 function normSpeech(s){
-  var out=String(s).trim().split(/\s+/).map(function(w){var n=numWord(w);return n===null?w:String(n)}).join(' ');
+  var out=normFrac(String(s)).trim().split(/\s+/).map(function(w){var n=numWord(w);return n===null?w:String(n)}).join(' ');
   out=out.replace(/(\d+)\s+komma\s+(\d+)/gi,'$1,$2')
     .replace(/\b(?:kilogramm|kilo)\b/gi,'kg').replace(/\b(?:gramm|grams?)\b/gi,'g')
     .replace(/\bmilliliter\b/gi,'ml').replace(/\bliter\b/gi,'l')
@@ -804,10 +921,127 @@ function voiceInput(id,btn){
   try{r.start()}catch(x){rec=null;toast('Spracheingabe konnte nicht gestartet werden')}
 }
 
+/* ---------- Mengen (Brüche) und Rezepte ---------- */
+var QTY_NC='\\d+\\s+\\d+\\/\\d+|\\d+\\/\\d+|\\d*\\s*[½¼¾⅓⅔]|\\d+(?:[.,]\\d+)?';
+var UNITS='stücke|stück|stk|scheiben|scheibe|portionen|portion|teile|teil|zehen|zehe|kg|gr|g|ml|el|tl|l|x';
+var UNITS2='stücke|stück|stk|scheiben|scheibe|portionen|portion|teile|teil|zehen|zehe|kg|gr|g|ml|el|tl|l';
+function parseQty(s){
+  s=String(s).trim();var m,u={'½':0.5,'¼':0.25,'¾':0.75,'⅓':1/3,'⅔':2/3};
+  if((m=s.match(/^(\d+)\s+(\d+)\/(\d+)$/)))return +m[3]?(+m[1]+(+m[2])/(+m[3])):0;
+  if((m=s.match(/^(\d+)\/(\d+)$/)))return +m[2]?(+m[1])/(+m[2]):0;
+  if((m=s.match(/^(\d*)\s*([½¼¾⅓⅔])$/)))return (m[1]?+m[1]:0)+u[m[2]];
+  return num(s);
+}
+var rcMode=false,rcForm=null,rcEditName='';
+function plain(n){return String(Math.round(n*10)/10).replace('.',',')}
+function findRecipe(q){
+  q=String(q).toLowerCase().trim();if(!q)return null;
+  var l=S.recipes||[];for(var i=0;i<l.length;i++)if(l[i].name.toLowerCase()===q)return l[i];
+  return null;
+}
+function recipeTotals(r){return sum(r.items.map(function(it){return calc(it.food,it.g)}))}
+function recipeWeight(r){var w=r.yieldG>0?r.yieldG:r.items.reduce(function(a,it){return a+it.g},0);return w>0?w:1}
+function recipeEst(r){return r.items.some(function(it){return it.food.e})}
+function recipeItem(r,frac){
+  var t=recipeTotals(r),W=recipeWeight(r);
+  var f={n:r.name,k:t.k/W*100,p:t.p/W*100,c:t.c/W*100,f:t.f/W*100};
+  if(recipeEst(r))f.e=1;
+  return {food:f,g:W*frac,routine:r.name};
+}
+function matchRecipe(p){
+  if(!(S.recipes||[]).length)return null;
+  var m,r,rg=new RegExp('^'+'('+QTY_NC+')'+'\\s*(stücke|stück|stk|scheiben|scheibe|portionen|portion|teile|teil|x)?\\s*(?:(?:vom|von|des|der)\\s+)?(.+)$','i');
+  m=p.match(/^(\d+(?:[.,]\d+)?)\s*(kg|gr|g)\s+(?:(?:vom|von|des|der)\s+)?(.+)$/i);
+  if(m&&(r=findRecipe(m[3]))){var gg=num(m[1])*(m[2].toLowerCase()==='kg'?1000:1);return {r:r,frac:gg/recipeWeight(r)}}
+  m=p.match(rg);
+  if(m&&(r=findRecipe(m[3]))){
+    var q=parseQty(m[1]),u=(m[2]||'').toLowerCase(),n=r.portions||1;
+    return {r:r,frac:(u||q>=1)?q/n:q};
+  }
+  r=findRecipe(p);
+  return r?{r:r,frac:1/(r.portions||1)}:null;
+}
+function normFrac(s){
+  return s.replace(/\b(?:anderthalb|eineinhalb)\b/gi,'1,5')
+    .replace(/\b(zwei|drei|vier|fünf)einhalb\b/gi,function(a,b){return String(numWord(b))+',5'})
+    .replace(/\bdrei\s+viertel\b/gi,'3/4').replace(/\b(?:ein\s+)?viertel\b/gi,'1/4')
+    .replace(/\bzwei\s+drittel\b/gi,'2/3').replace(/\b(?:ein\s+)?drittel\b/gi,'1/3')
+    .replace(/\b(?:ein(?:e|en|em|er)?\s+)?halb(?:e|er|es|en|em)?\b/gi,'1/2');
+}
+function renderRecipes(){
+  var b=$('#recipeList');if(!b)return;
+  var rs=S.recipes||[];
+  b.innerHTML=rs.length?rs.map(function(r,i){
+    var t=recipeTotals(r),n=r.portions||1,W=recipeWeight(r),u=esc(r.unit||'Portion');
+    return '<div class="item" style="flex-direction:column;align-items:stretch"><div class="t"><strong>'+esc(r.name)+(recipeEst(r)?' ~':'')+'</strong>'+
+      '<div class="s">'+n+' '+u+' · '+f0(W)+' g'+(r.yieldG>0?'':' (Rohgewicht)')+'</div>'+
+      '<div class="s">Pro '+u+': '+f0(t.k/n)+' kcal · P '+f1(t.p/n)+' · C '+f1(t.c/n)+' · F '+f1(t.f/n)+'</div>'+
+      '<div class="s">'+esc(r.items.map(function(it){return plain(it.g)+' g '+it.food.n}).join(', '))+'</div></div>'+
+      '<div class="row" style="margin-top:8px"><button class="btn small primary" onclick="recipeToMeal('+i+')">+ 1 '+u+'</button><button class="btn small" onclick="editRecipe('+i+')">Bearbeiten</button><button class="btn small danger" onclick="delRecipe('+i+')">Löschen</button></div></div>';
+  }).join(''):'<p class="muted" style="margin:0">Noch keine Rezepte. Lege unten eines an, z. B. einen Kuchen mit allen Zutaten.</p>';
+}
+function recipeToMeal(i){
+  var r=S.recipes[i];if(!r)return;
+  var tx=$('#mealText'),cur=(tx.value||'').trim().replace(/[,;+]$/,'');
+  tx.value=(cur?cur+', ':'')+'1 '+(r.unit||'Portion')+' '+r.name;
+  show('add');calcMeal();
+}
+function delRecipe(i){S.recipes.splice(i,1);save();renderRecipes();toast('Rezept gelöscht')}
+function editRecipe(i){
+  var r=S.recipes[i];if(!r)return;
+  $('#rcName').value=r.name;
+  $('#rcText').value=r.items.map(function(it){return plain(it.g)+' g '+it.food.n}).join(', ');
+  $('#rcPortions').value=String(r.portions||1);$('#rcUnit').value=r.unit||'Portion';
+  $('#rcYield').value=r.yieldG>0?plain(r.yieldG):'';
+  rcEditName=r.name;
+  var s=$('#sec-rnew');if(s){s.open=true;s.scrollIntoView({behavior:'smooth'})}
+  toast('Zutaten prüfen, dann „Zutaten berechnen“');
+}
+function buildRecipe(){
+  var n=cleanName($('#rcName').value||''),t=($('#rcText').value||'').trim();
+  var por=Math.max(1,Math.round(num($('#rcPortions').value)||1)),unit=$('#rcUnit').value||'Portion',y=num($('#rcYield').value);
+  if(!n){toast('Name fehlt');return}
+  if(!t){toast('Bitte Zutaten eingeben');return}
+  var r=parseMeal(t);
+  r.items=r.items.map(function(x){return {food:x.food,g:x.g}});
+  if(!r.items.length&&!r.missing.length){toast('Keine Zutaten erkannt');return}
+  draft=r.items;missing=r.missing;rcMode=true;rbMode=false;routineName='';
+  rcForm={name:n,portions:por,unit:unit,yieldG:y>0?y:0,orig:rcEditName};
+  $('#sugBox').innerHTML='';show('add');
+  $('#draftBox').scrollIntoView({behavior:'smooth'});
+  toast(missing.length?missing.length+' Lebensmittel nicht in der Datenbank':'Prüfen und unten als Rezept speichern');
+}
+function rcRow(){
+  var f=rcForm||{portions:1,unit:'Portion'},t=sum(draft.map(function(d){return calc(d.food,d.g)})),n=f.portions||1;
+  return '<p class="muted" style="margin:12px 0 0">Rezept „'+esc(f.name||'')+'“ · '+n+' '+esc(f.unit)+(f.yieldG?' · Fertiggewicht '+f0(f.yieldG)+' g':'')+'<br>Pro '+esc(f.unit)+': '+f0(t.k/n)+' kcal · P '+f1(t.p/n)+' · C '+f1(t.c/n)+' · F '+f1(t.f/n)+'</p>'+
+    '<button class="btn primary" style="width:100%;margin-top:10px" onclick="saveRecipeFromDraft()">Rezept speichern</button>';
+}
+function saveRecipeFromDraft(){
+  if(!rcForm||!draft.length){toast('Keine Zutaten');return}
+  if(missing.length){toast('Erst die fehlenden Lebensmittel klären oder verwerfen');return}
+  var r={name:rcForm.name,items:draft.map(function(d){return {food:Object.assign({},d.food),g:d.g}}),portions:rcForm.portions,unit:rcForm.unit,yieldG:rcForm.yieldG};
+  var l=S.recipes.map(function(x){return x.name.toLowerCase()});
+  if(rcForm.orig&&rcForm.orig.toLowerCase()!==r.name.toLowerCase()){var oi=l.indexOf(rcForm.orig.toLowerCase());if(oi>-1){S.recipes.splice(oi,1);l.splice(oi,1)}}
+  var ex=l.indexOf(r.name.toLowerCase());
+  if(ex>-1)S.recipes[ex]=r;else S.recipes.push(r);
+  save();var nm=r.name;
+  rcMode=false;rcForm=null;rcEditName='';draft=[];missing=[];
+  ['rcName','rcText','rcPortions','rcYield'].forEach(function(id){$('#'+id).value=''});
+  show('recipes');toast('Rezept „'+nm+'“ gespeichert');
+}
+/* ---------- Einklappbare Bereiche ---------- */
+function uiSec(){S.ui=S.ui||{};S.ui.sec=S.ui.sec||{};return S.ui.sec}
+function secTg(el){if(el.id){uiSec()[el.id]=el.open?1:0;save()}}
+function initSecs(){
+  var st=uiSec();
+  document.querySelectorAll('details.sec').forEach(function(el){if(el.id&&st[el.id]!==undefined)el.open=!!st[el.id]});
+}
+function openSec(id){var e=$('#'+id);if(e)e.open=true}
+
 /* ---------- Neue Lebensmittel ---------- */
 var pendingIdx=null,lastOff=[];
-function lookup(i){pendingIdx=i;$('#offQ').value=missing[i].name;$('#offG').value=String(missing[i].g);$('#newFoodCard').scrollIntoView({behavior:'smooth'});offSearch()}
-function manualFor(i){pendingIdx=i;$('#mName').value=missing[i].name;$('#offG').value=String(missing[i].g);$('#newFoodCard').scrollIntoView({behavior:'smooth'});$('#mK').focus()}
+function lookup(i){openSec('newFoodCard');pendingIdx=i;$('#offQ').value=missing[i].name;$('#offG').value=String(missing[i].g);$('#newFoodCard').scrollIntoView({behavior:'smooth'});offSearch()}
+function manualFor(i){openSec('newFoodCard');pendingIdx=i;$('#mName').value=missing[i].name;$('#offG').value=String(missing[i].g);$('#newFoodCard').scrollIntoView({behavior:'smooth'});$('#mK').focus()}
 function dropMissing(i){missing.splice(i,1);pendingIdx=null;estOpen=-1;renderDraft()}
 var estOpen=-1;
 var EST=[
