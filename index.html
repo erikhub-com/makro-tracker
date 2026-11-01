@@ -132,12 +132,29 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
   <section id="tab-add" hidden>
     <div class="card">
       <h2>Mahlzeit eingeben</h2>
-      <textarea id="mealText" rows="3" placeholder="z. B. 250g Magerquark, 80g Haferflocken, 2 Eier, 200g Apfelmus"></textarea>
+      <textarea id="mealText" rows="3" placeholder="z. B. 250g Magerquark, 2 Eier, Cappuccino"></textarea>
       <div class="row" style="margin-top:10px">
         <button class="btn primary grow" onclick="calcMeal()">Berechnen</button>
         <button class="btn" onclick="clearDraft()">Leeren</button>
       </div>
-      <p class="muted" style="margin:10px 0 0">Mehrere Zutaten mit Komma trennen. Ohne Einheit zählen Eier als Stück, alles andere als Gramm.</p>
+      <p class="muted" style="margin:10px 0 0">Mehrere Zutaten mit Komma trennen. Ohne Einheit zählen Eier als Stück, alles andere als Gramm. Gespeicherte Routinen lädst du über den Namen, z. B. „Cappuccino“ oder „2x Cappuccino“.</p>
+    </div>
+
+    <div class="card">
+      <h2>Routinen</h2>
+      <div id="routineChips" class="row"></div>
+      <details style="margin-top:12px">
+        <summary class="muted" style="cursor:pointer">Neue Routine mit festen Werten</summary>
+        <div class="grid4" style="margin-top:10px">
+          <label class="f" style="grid-column:1/-1">Name<input id="rnName" placeholder="z. B. Cappuccino"></label>
+          <label class="f">kcal<input id="rnK" inputmode="decimal"></label>
+          <label class="f">Protein (g)<input id="rnP" inputmode="decimal"></label>
+          <label class="f">Kohlenhydrate (g)<input id="rnC" inputmode="decimal"></label>
+          <label class="f">Fett (g)<input id="rnF" inputmode="decimal"></label>
+        </div>
+        <p class="muted" style="margin:8px 0 0">Werte für eine ganze Portion. Die Menge 1 steht später für eine Portion, 2 für zwei.</p>
+        <button class="btn primary" style="margin-top:10px;width:100%" onclick="saveFixedRoutine()">Routine speichern</button>
+      </details>
     </div>
 
     <div id="draftBox"></div>
@@ -182,6 +199,7 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
       <input id="dbQ" placeholder="Filtern" oninput="renderDb()">
       <div id="dbBox" class="list" style="margin-top:10px"></div>
     </div>
+    <div class="card"><h2>Routinen</h2><div id="routineList" class="list"></div></div>
   </section>
 
   <!-- ZIELE -->
@@ -245,7 +263,7 @@ var BASE=[
 ];
 function defaultState(){
   var t={};for(var m in MODES){t[m]={k:MODES[m].k,p:MODES[m].p,c:MODES[m].c,f:MODES[m].f}}
-  return {mode:'recomp',targets:t,db:[],log:{}};
+  return {mode:'recomp',targets:t,db:[],routines:[],log:{}};
 }
 var S=defaultState();
 try{var raw=localStorage.getItem('makro-tracker-v1');if(raw){S=Object.assign(defaultState(),JSON.parse(raw))}}catch(e){}
@@ -277,8 +295,8 @@ function show(tab){
     if(b.dataset.tab===tab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
   });
   if(tab==='today')renderToday();
-  if(tab==='add')renderDraft();
-  if(tab==='db')renderDb();
+  if(tab==='add'){renderDraft();renderRoutineChips()}
+  if(tab==='db'){renderDb();renderRoutineList()}
   if(tab==='goals')renderGoals();
   window.scrollTo(0,0);
 }
@@ -368,6 +386,10 @@ function parseMeal(text){
   var re2=/^(.+?)\s+(\d+(?:[.,]\d+)?)\s*(?:(kg|gr|g|ml|l|stk|stück)(?![a-zäöüß]))?$/i;
   var res={items:[],missing:[]};
   parts.forEach(function(p){
+    p=p.replace(/^[\/@]\s*/,'');
+    var rx=findRoutine(p,true),mult=1;
+    if(!rx){var mm=p.match(/^(\d+(?:[.,]\d+)?)\s*x?\s+(.+)$/i);if(mm){var r2=findRoutine(mm[2],true);if(r2){rx=r2;mult=num(mm[1])||1}}}
+    if(rx){rx.items.forEach(function(it){res.items.push({food:Object.assign({},it.food),g:it.g*mult,routine:rx.name})});return}
     var name,qty=null,unit='';
     var m=p.match(re1);
     if(m){qty=num(m[1]);unit=(m[2]||'').toLowerCase();name=m[3]}
@@ -379,7 +401,8 @@ function parseMeal(text){
     else if(unit==='g'||unit==='gr'||unit==='ml')g=qty||0;
     else if(qty===null)g=fd&&fd.piece?fd.piece:100;
     else g=fd&&fd.piece?qty*fd.piece:qty;
-    if(fd)res.items.push({food:fd,g:g});else res.missing.push({name:name,g:g||100});
+    if(fd)res.items.push({food:fd,g:g});
+    else{var rp=findRoutine(name,false);if(rp){rp.items.forEach(function(it){res.items.push({food:Object.assign({},it.food),g:it.g,routine:rp.name})})}else res.missing.push({name:name,g:g||100})}
   });
   return res;
 }
@@ -403,7 +426,7 @@ function renderDraft(){
     h+='<div class="card"><h2>Nährwert-Check</h2><div class="scroll"><table class="tbl"><thead><tr><th>Zutat</th><th>g</th><th>kcal</th><th>P</th><th>C</th><th>F</th><th></th></tr></thead><tbody>'+
     draft.map(function(d,i){var c=rows[i];
       return '<tr><td>'+esc(d.food.n)+'</td><td><input inputmode="decimal" value="'+f1(d.g).replace('.','')+'" onchange="setG('+i+',this.value)" aria-label="Gramm"></td><td>'+f0(c.k)+'</td><td>'+f1(c.p)+'</td><td>'+f1(c.c)+'</td><td>'+f1(c.f)+'</td><td><button class="btn small" onclick="rmDraft('+i+')" aria-label="Entfernen">×</button></td></tr>'}).join('')+
-    '</tbody><tfoot><tr><td>Summe</td><td></td><td>'+f0(t.k)+'</td><td>'+f1(t.p)+'</td><td>'+f1(t.c)+'</td><td>'+f1(t.f)+'</td><td></td></tr></tfoot></table></div></div>';
+    '</tbody><tfoot><tr><td>Summe</td><td></td><td>'+f0(t.k)+'</td><td>'+f1(t.p)+'</td><td>'+f1(t.c)+'</td><td>'+f1(t.f)+'</td><td></td></tr></tfoot></table></div><div class="row" style="margin-top:12px"><input class="grow" id="rName" placeholder="Als Routine speichern, z. B. Frühstück"><button class="btn" onclick="saveRoutineFromDraft()">Speichern</button></div></div>';
     var key=dayKey(new Date()),tg=target(),tot=sum([dayTotals(key),t]);
     h+='<div class="card"><h2>Tagesstatus inkl. Mahlzeit</h2>'+statusTable(tot,tg)+'</div>';
     h+='<div class="card"><h2>Taktischer Status</h2><div class="fb">'+fbHtml(feedback(tot,tg))+'</div></div>';
@@ -423,6 +446,55 @@ function addToDay(){
   save();draft=[];missing=[];$('#mealText').value='';viewDay=new Date();
   show('today');toast('Mahlzeit gespeichert');
 }
+
+/* ---------- Routinen ---------- */
+function findRoutine(q,exact){
+  q=String(q).toLowerCase().trim();if(!q)return null;
+  var list=S.routines||[],i;
+  for(i=0;i<list.length;i++)if(list[i].name.toLowerCase()===q)return list[i];
+  if(exact||q.length<3)return null;
+  var c=list.filter(function(r){return r.name.toLowerCase().indexOf(q)===0});
+  return c.length===1?c[0]:null;
+}
+function routineSum(r){return sum(r.items.map(function(it){return calc(it.food,it.g)}))}
+function upsertRoutine(r){
+  var ex=S.routines.map(function(x){return x.name.toLowerCase()}).indexOf(r.name.toLowerCase());
+  if(ex>-1)S.routines[ex]=r;else S.routines.push(r);
+  save();renderRoutineChips();
+}
+function addRoutine(i){
+  var r=S.routines[i];if(!r)return;
+  r.items.forEach(function(it){draft.push({food:Object.assign({},it.food),g:it.g,routine:r.name})});
+  renderDraft();toast(r.name+' geladen');
+}
+function saveRoutineFromDraft(){
+  var n=($('#rName').value||'').trim();if(!n){toast('Name für die Routine fehlt');return}
+  if(!draft.length)return;
+  upsertRoutine({name:n,items:draft.map(function(d){return {food:Object.assign({},d.food),g:d.g}})});
+  toast('Routine „'+n+'“ gespeichert');
+}
+function saveFixedRoutine(){
+  var n=$('#rnName').value.trim();if(!n){toast('Name fehlt');return}
+  var k=num($('#rnK').value),p=num($('#rnP').value),c=num($('#rnC').value),f=num($('#rnF').value);
+  if(!k&&(p||c||f))k=Math.round(p*4+c*4+f*9);
+  if(!k){toast('Bitte Werte eingeben');return}
+  upsertRoutine({name:n,items:[{food:{n:n,k:k*100,p:p*100,c:c*100,f:f*100},g:1}]});
+  ['rnName','rnK','rnP','rnC','rnF'].forEach(function(id){$('#'+id).value=''});
+  toast('Routine „'+n+'“ gespeichert');
+}
+function renderRoutineChips(){
+  var b=$('#routineChips');if(!b)return;
+  b.innerHTML=S.routines.length?S.routines.map(function(r,i){var t=routineSum(r);
+    return '<button class="btn small" onclick="addRoutine('+i+')">'+esc(r.name)+' · '+f0(t.k)+' kcal</button>'}).join(''):
+    '<p class="muted" style="margin:0">Noch keine Routinen. Speichere eine berechnete Mahlzeit als Routine oder lege unten eine mit festen Werten an.</p>';
+}
+function renderRoutineList(){
+  var b=$('#routineList');if(!b)return;
+  b.innerHTML=S.routines.length?S.routines.map(function(r,i){var t=routineSum(r);
+    return '<div class="item"><div class="t"><strong>'+esc(r.name)+'</strong><div class="s">'+f0(t.k)+' kcal · P '+f1(t.p)+' · C '+f1(t.c)+' · F '+f1(t.f)+'</div><div class="s">'+esc(r.items.map(function(it){return it.food.n}).join(', '))+'</div></div><button class="btn small danger" onclick="delRoutine('+i+')">Löschen</button></div>'}).join(''):
+    '<p class="muted">Keine Routinen gespeichert.</p>';
+}
+function delRoutine(i){S.routines.splice(i,1);save();renderRoutineList();toast('Routine gelöscht')}
 
 /* ---------- Neue Lebensmittel ---------- */
 var pendingIdx=null,lastOff=[];
