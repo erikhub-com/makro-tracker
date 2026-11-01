@@ -104,6 +104,9 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));
   background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9;max-width:90vw;text-align:center}
 #toast.on{opacity:1}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.banner{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px;border-radius:12px;background:color-mix(in srgb,var(--warn) 14%,var(--surface));border:1px solid var(--line);font-size:15px}
+#bannerBox:empty,#copyRow:empty,#sugBox:empty{display:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -122,7 +125,9 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
         <strong id="dateLabel"></strong>
         <button class="btn small" onclick="shiftDay(1)" aria-label="Nächster Tag">&rarr;</button>
       </div>
+      <div id="copyRow" style="margin-top:10px"></div>
     </div>
+    <div id="bannerBox"></div>
     <div class="card"><h2>Tagesstatus</h2><div id="statusBox"></div></div>
     <div class="card"><h2>Taktischer Status</h2><div id="fbBox" class="fb"></div></div>
     <div class="card"><h2>Mahlzeiten</h2><div id="mealsBox"></div></div>
@@ -132,13 +137,16 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
   <section id="tab-add" hidden>
     <div class="card">
       <h2>Mahlzeit eingeben</h2>
-      <textarea id="mealText" rows="3" placeholder="z. B. 250g Magerquark, 2 Eier, Cappuccino"></textarea>
+      <textarea id="mealText" rows="3" oninput="suggest()" placeholder="z. B. 250g Magerquark, 2 Eier, Cappuccino"></textarea>
+      <div id="sugBox" class="chips" style="margin-top:8px"></div>
       <div class="row" style="margin-top:10px">
         <button class="btn primary grow" onclick="calcMeal()">Berechnen</button>
         <button class="btn" onclick="clearDraft()">Leeren</button>
       </div>
       <p class="muted" style="margin:10px 0 0">Mehrere Zutaten mit Komma trennen. Ohne Einheit zählen Eier als Stück, alles andere als Gramm. Gespeicherte Routinen lädst du über den Namen, z. B. „Cappuccino“ oder „2x Cappuccino“.</p>
     </div>
+
+    <div id="draftBox"></div>
 
     <div class="card">
       <h2>Routinen</h2>
@@ -157,7 +165,10 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
       </details>
     </div>
 
-    <div id="draftBox"></div>
+    <div class="card">
+      <h2>Schnellwahl</h2>
+      <div id="quickBox" class="chips"></div>
+    </div>
 
     <div class="card" id="newFoodCard">
       <h2>Neues Lebensmittel</h2>
@@ -220,9 +231,10 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
     </div>
     <div class="card">
       <h2>Daten</h2>
-      <p class="muted" style="margin-top:0">Alles bleibt lokal auf diesem Gerät. Sichere es gelegentlich als Datei.</p>
+      <p class="muted" style="margin-top:0">Alles bleibt lokal auf diesem Gerät. Sichere es regelmäßig, am besten über das Teilen-Menü in Google Drive.</p>
+      <p class="muted" id="bkInfo"></p>
       <div class="row">
-        <button class="btn" onclick="exportData()">Backup speichern</button>
+        <button class="btn" onclick="exportData()">Backup sichern</button>
         <label class="btn" style="cursor:pointer">Backup laden<input type="file" accept="application/json" hidden onchange="importData(event)"></label>
       </div>
     </div>
@@ -263,13 +275,17 @@ var BASE=[
 ];
 function defaultState(){
   var t={};for(var m in MODES){t[m]={k:MODES[m].k,p:MODES[m].p,c:MODES[m].c,f:MODES[m].f}}
-  return {mode:'recomp',targets:t,db:[],routines:[],log:{}};
+  return {mode:'recomp',targets:t,db:[],routines:[],recent:[],favs:[],meta:{lastBackup:0,snooze:0},log:{}};
 }
 var S=defaultState();
 try{var raw=localStorage.getItem('makro-tracker-v1');if(raw){S=Object.assign(defaultState(),JSON.parse(raw))}}catch(e){}
+S.meta=Object.assign({lastBackup:0,snooze:0},S.meta||{});
+S.db.forEach(function(f){f.n=cleanName(f.n)});
 function save(){try{localStorage.setItem('makro-tracker-v1',JSON.stringify(S))}catch(e){}}
 
 /* ---------- Helfer ---------- */
+function cleanName(s){return String(s).replace(/[,;+]/g,' ').replace(/\s&\s/g,' / ').replace(/\sund\s/gi,' u. ').replace(/\s+/g,' ').trim()}
+function foodByName(n){n=String(n).toLowerCase();var a=allFoods();for(var i=0;i<a.length;i++)if(a[i].n.toLowerCase()===n)return a[i];return null}
 function $(s){return document.querySelector(s)}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function num(v){var n=parseFloat(String(v).replace(',','.'));return isNaN(n)?0:n}
@@ -295,7 +311,7 @@ function show(tab){
     if(b.dataset.tab===tab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
   });
   if(tab==='today')renderToday();
-  if(tab==='add'){renderDraft();renderRoutineChips()}
+  if(tab==='add'){renderDraft();renderRoutineChips();renderQuick()}
   if(tab==='db'){renderDb();renderRoutineList()}
   if(tab==='goals')renderGoals();
   window.scrollTo(0,0);
@@ -349,16 +365,58 @@ function renderToday(){
   $('#modeBadge').textContent=MODES[S.mode].label;
   $('#statusBox').innerHTML='<div class="hero"><span class="big">'+f0(tot.k)+'</span><span class="sub">von '+f0(tg.k)+' kcal</span></div>'+statusTable(tot,tg);
   $('#fbBox').innerHTML=fbHtml(feedback(tot,tg));
+  renderMeals(key);renderBanner();renderCopy(key);
+}
+var openMeals={};
+function tg(id,el){if(el.open)openMeals[id]=1;else delete openMeals[id]}
+function renderMeals(key){
   var meals=S.log[key]||[];
   if(!meals.length){$('#mealsBox').innerHTML='<p class="muted" style="margin:0">Keine Mahlzeiten für diesen Tag.</p>';return}
   $('#mealsBox').innerHTML=meals.map(function(m,mi){
-    var t=sum(m.items);
-    return '<details class="meal"><summary><span>'+esc(m.t)+' Uhr</span><span class="meta">'+f0(t.k)+' kcal · P '+f1(t.p)+' · C '+f1(t.c)+' · F '+f1(t.f)+'</span></summary>'+
-    '<div class="scroll"><table class="tbl"><thead><tr><th>Zutat</th><th>g</th><th>kcal</th><th>P</th><th>C</th><th>F</th></tr></thead><tbody>'+
-    m.items.map(function(i){return '<tr><td>'+esc(i.n)+'</td><td>'+f0(i.g)+'</td><td>'+f0(i.k)+'</td><td>'+f1(i.p)+'</td><td>'+f1(i.c)+'</td><td>'+f1(i.f)+'</td></tr>'}).join('')+
-    '</tbody></table></div><div style="margin-top:8px"><button class="btn small danger" onclick="delMeal(\''+key+'\','+mi+')">Mahlzeit löschen</button></div></details>';
+    var t=sum(m.items),id=key+'|'+m.id;
+    return '<details class="meal" ontoggle="tg(\''+id+'\',this)"'+(openMeals[id]?' open':'')+'><summary><span>'+esc(m.t)+' Uhr</span><span class="meta">'+f0(t.k)+' kcal · P '+f1(t.p)+' · C '+f1(t.c)+' · F '+f1(t.f)+'</span></summary>'+
+    '<div class="scroll"><table class="tbl"><thead><tr><th>Zutat</th><th>g</th><th>kcal</th><th>P</th><th>C</th><th>F</th><th></th></tr></thead><tbody>'+
+    m.items.map(function(i,ii){return '<tr><td>'+esc(i.n)+'</td><td><input inputmode="decimal" value="'+f1(i.g).replace('.','')+'" onchange="editItem(\''+key+'\','+mi+','+ii+',this.value)" aria-label="Menge"></td><td>'+f0(i.k)+'</td><td>'+f1(i.p)+'</td><td>'+f1(i.c)+'</td><td>'+f1(i.f)+'</td><td><button class="btn small" onclick="delItem(\''+key+'\','+mi+','+ii+')" aria-label="Zutat entfernen">×</button></td></tr>'}).join('')+
+    '</tbody></table></div><div class="row" style="margin-top:8px"><button class="btn small" onclick="dupMeal(\''+key+'\','+mi+')">Heute nochmal</button><button class="btn small danger" onclick="delMeal(\''+key+'\','+mi+')">Mahlzeit löschen</button></div></details>';
   }).join('');
 }
+function editItem(key,mi,ii,v){
+  var it=S.log[key][mi].items[ii],ng=num(v);
+  if(ng<=0||!it.g){renderToday();return}
+  var s=ng/it.g;it.k*=s;it.p*=s;it.c*=s;it.f*=s;it.g=ng;save();renderToday();
+}
+function delItem(key,mi,ii){
+  var m=S.log[key][mi];m.items.splice(ii,1);
+  if(!m.items.length){S.log[key].splice(mi,1);if(!S.log[key].length)delete S.log[key]}
+  save();renderToday();
+}
+function newMealId(){return Date.now()+Math.random()}
+function nowTime(){return new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}
+function dupMeal(key,mi){
+  var m=S.log[key][mi],tk=dayKey(new Date());
+  (S.log[tk]=S.log[tk]||[]).push({id:newMealId(),t:nowTime(),items:m.items.map(function(i){return Object.assign({},i)})});
+  save();viewDay=new Date();renderToday();toast('Zu heute kopiert');
+}
+function renderCopy(key){
+  var el=$('#copyRow');if(!el)return;
+  var tk=dayKey(new Date()),y=new Date();y.setDate(y.getDate()-1);
+  var src=key===tk?dayKey(y):key;
+  if(!(S.log[src]||[]).length){el.innerHTML='';return}
+  el.innerHTML='<button class="btn small" onclick="copyDay(\''+src+'\')">'+(key===tk?'Gestern kopieren':'Auf heute kopieren')+'</button>';
+}
+function copyDay(src){
+  var tk=dayKey(new Date());
+  (S.log[src]||[]).forEach(function(m){(S.log[tk]=S.log[tk]||[]).push({id:newMealId(),t:m.t,items:m.items.map(function(i){return Object.assign({},i)})})});
+  save();viewDay=new Date();renderToday();toast('Kopiert');
+}
+function renderBanner(){
+  var el=$('#bannerBox');if(!el)return;
+  var days=Object.keys(S.log).length,now=Date.now(),lb=S.meta.lastBackup||0;
+  var age=lb?Math.floor((now-lb)/86400000):null;
+  if(days<2||now<(S.meta.snooze||0)||(lb&&age<7)){el.innerHTML='';return}
+  el.innerHTML='<div class="banner"><span>'+(lb?'Letztes Backup vor '+age+' Tagen.':'Noch kein Backup gemacht.')+' Sichere deine Daten, damit nichts verloren geht.</span><span class="row"><button class="btn small primary" onclick="exportData()">Sichern</button><button class="btn small" onclick="snoozeBackup()">Später</button></span></div>';
+}
+function snoozeBackup(){S.meta.snooze=Date.now()+3*86400000;save();renderBanner()}
 function delMeal(key,i){S.log[key].splice(i,1);if(!S.log[key].length)delete S.log[key];save();renderToday();toast('Mahlzeit gelöscht')}
 
 /* ---------- Mahlzeit berechnen ---------- */
@@ -409,11 +467,38 @@ function parseMeal(text){
 function calcMeal(){
   var txt=$('#mealText').value;
   if(!txt.trim()){toast('Bitte eine Mahlzeit eingeben');return}
-  var r=parseMeal(txt);draft=r.items;missing=r.missing;
+  var r=parseMeal(txt);draft=r.items;missing=r.missing;$('#sugBox').innerHTML='';
   renderDraft();
   if(missing.length)toast(missing.length+' Lebensmittel nicht in der Datenbank');
 }
-function clearDraft(){draft=[];missing=[];$('#mealText').value='';renderDraft()}
+function clearDraft(){draft=[];missing=[];$('#mealText').value='';$('#sugBox').innerHTML='';renderDraft()}
+var sugState={base:'',list:[]};
+function suggest(){
+  var box=$('#sugBox');if(!box)return;
+  var v=$('#mealText').value;
+  var idx=Math.max(v.lastIndexOf(','),v.lastIndexOf(';'),v.lastIndexOf('+'),v.lastIndexOf('\n'));
+  var tok=v.slice(idx+1);
+  var m=tok.match(/^(\s*[\/@]?\s*(?:\d+(?:[.,]\d+)?\s*(?:(?:kg|gr|g|ml|l|stk|stück|x)(?![a-zäöüß]))?\s*)?)(.*)$/i);
+  var q=(m?m[2]:tok).trim().toLowerCase();
+  if(q.length<2){box.innerHTML='';sugState.list=[];return}
+  var out=[];
+  function add(n,rank){if(out.some(function(o){return o.n===n}))return;out.push({n:n,r:rank})}
+  S.routines.forEach(function(r){var n=r.name.toLowerCase();if(n.indexOf(q)===0)add(r.name,0);else if(n.indexOf(q)>-1)add(r.name,2)});
+  allFoods().forEach(function(f){
+    var terms=[f.n.toLowerCase()].concat((f.a||[]).map(function(x){return x.toLowerCase()})),rank=9;
+    terms.forEach(function(t){if(t.indexOf(q)===0)rank=Math.min(rank,1);else if(t.indexOf(q)>-1)rank=Math.min(rank,3)});
+    if(rank<9)add(f.n,rank);
+  });
+  out.sort(function(a,b){return a.r-b.r});
+  out=out.filter(function(o){return o.n.toLowerCase()!==q}).slice(0,6);
+  sugState={base:v.slice(0,idx+1)+(m?m[1]:''),list:out};
+  box.innerHTML=out.map(function(o,i){return '<button class="btn small" onclick="applySug('+i+')">'+esc(o.n)+'</button>'}).join('');
+}
+function applySug(i){
+  var o=sugState.list[i];if(!o)return;
+  $('#mealText').value=sugState.base+o.n+', ';
+  $('#sugBox').innerHTML='';$('#mealText').focus();
+}
 function setG(i,v){draft[i].g=num(v);renderDraft()}
 function rmDraft(i){draft.splice(i,1);renderDraft()}
 function renderDraft(){
@@ -442,8 +527,8 @@ function addToDay(){
   if(!draft.length)return;
   var items=draft.map(function(d){var c=calc(d.food,d.g);return {n:d.food.n,g:d.g,k:c.k,p:c.p,c:c.c,f:c.f}});
   var key=dayKey(new Date());
-  (S.log[key]=S.log[key]||[]).push({id:Date.now(),t:new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),items:items});
-  save();draft=[];missing=[];$('#mealText').value='';viewDay=new Date();
+  (S.log[key]=S.log[key]||[]).push({id:newMealId(),t:nowTime(),items:items});
+  noteRecent(draft);save();draft=[];missing=[];$('#mealText').value='';viewDay=new Date();
   show('today');toast('Mahlzeit gespeichert');
 }
 
@@ -465,16 +550,16 @@ function upsertRoutine(r){
 function addRoutine(i){
   var r=S.routines[i];if(!r)return;
   r.items.forEach(function(it){draft.push({food:Object.assign({},it.food),g:it.g,routine:r.name})});
-  renderDraft();toast(r.name+' geladen');
+  renderDraft();$('#draftBox').scrollIntoView({behavior:'smooth',block:'nearest'});toast(r.name+' geladen');
 }
 function saveRoutineFromDraft(){
-  var n=($('#rName').value||'').trim();if(!n){toast('Name für die Routine fehlt');return}
+  var n=cleanName($('#rName').value||'');if(!n){toast('Name für die Routine fehlt');return}
   if(!draft.length)return;
   upsertRoutine({name:n,items:draft.map(function(d){return {food:Object.assign({},d.food),g:d.g}})});
   toast('Routine „'+n+'“ gespeichert');
 }
 function saveFixedRoutine(){
-  var n=$('#rnName').value.trim();if(!n){toast('Name fehlt');return}
+  var n=cleanName($('#rnName').value);if(!n){toast('Name fehlt');return}
   var k=num($('#rnK').value),p=num($('#rnP').value),c=num($('#rnC').value),f=num($('#rnF').value);
   if(!k&&(p||c||f))k=Math.round(p*4+c*4+f*9);
   if(!k){toast('Bitte Werte eingeben');return}
@@ -496,6 +581,30 @@ function renderRoutineList(){
 }
 function delRoutine(i){S.routines.splice(i,1);save();renderRoutineList();toast('Routine gelöscht')}
 
+/* ---------- Schnellwahl ---------- */
+var quickList=[];
+function lastG(f){var r=S.recent.filter(function(x){return x.n===f.n})[0];return r?r.g:(f.piece||100)}
+function noteRecent(list){
+  list.forEach(function(d){
+    if(d.routine||!foodByName(d.food.n))return;
+    S.recent=S.recent.filter(function(r){return r.n!==d.food.n});
+    S.recent.unshift({n:d.food.n,g:d.g});
+  });
+  S.recent=S.recent.slice(0,16);
+}
+function renderQuick(){
+  var b=$('#quickBox');if(!b)return;
+  quickList=[];
+  S.favs.forEach(function(n){var f=foodByName(n);if(f)quickList.push({f:f,fav:true})});
+  S.recent.forEach(function(r){if(S.favs.indexOf(r.n)>-1)return;var f=foodByName(r.n);if(f)quickList.push({f:f,fav:false})});
+  b.innerHTML=quickList.length?quickList.map(function(q,i){return '<button class="btn small" onclick="quickAdd('+i+')">'+(q.fav?'★ ':'')+esc(q.f.n)+' · '+f0(lastG(q.f))+' g</button>'}).join(''):'<p class="muted" style="margin:0">Hier erscheinen deine Favoriten (Stern im Tab „Datenbank“) und zuletzt verwendete Lebensmittel.</p>';
+}
+function quickAdd(i){
+  var q=quickList[i];if(!q)return;
+  draft.push({food:Object.assign({},q.f),g:lastG(q.f)});
+  renderDraft();$('#draftBox').scrollIntoView({behavior:'smooth',block:'nearest'});toast(q.f.n+' hinzugefügt');
+}
+
 /* ---------- Neue Lebensmittel ---------- */
 var pendingIdx=null,lastOff=[];
 function lookup(i){pendingIdx=i;$('#offQ').value=missing[i].name;$('#offG').value=String(missing[i].g);$('#newFoodCard').scrollIntoView({behavior:'smooth'});offSearch()}
@@ -509,7 +618,7 @@ function offNut(p){
 }
 function offFood(p){
   var nu=offNut(p);if(!nu||!p.product_name)return null;
-  var name=p.product_name+(p.brands?' ('+p.brands.split(',')[0].trim()+')':'');
+  var name=cleanName(p.product_name+(p.brands?' ('+p.brands.split(',')[0].trim()+')':''));
   return {n:name,k:nu.k,p:nu.p,c:nu.c,f:nu.f,code:p.code||''};
 }
 function offFail(){$('#offBox').innerHTML='<div class="warnbox">Open Food Facts ist gerade nicht erreichbar. Prüfe die Internetverbindung oder gib die Werte unten manuell ein.</div>'}
@@ -551,7 +660,7 @@ function useFood(f){
 }
 function pickOff(i){var f=addFoodToDb(lastOff[i]);useFood(f);toast('In Datenbank gespeichert');window.scrollTo({top:0,behavior:'smooth'})}
 function saveManual(){
-  var n=$('#mName').value.trim();if(!n){toast('Name fehlt');return}
+  var n=cleanName($('#mName').value);if(!n){toast('Name fehlt');return}
   var f={n:n,k:num($('#mK').value),p:num($('#mP').value),c:num($('#mC').value),f:num($('#mF').value)};
   if(!f.k&&(f.p||f.c||f.f))f.k=Math.round(f.p*4+f.c*4+f.f*9);
   var fd=addFoodToDb(f);useFood(fd);
@@ -576,13 +685,19 @@ function startScan(){
 function stopScan(){scanOn=false;if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}$('#scanBox').hidden=true}
 
 /* ---------- Datenbank ---------- */
+var dbShown=[];
 function renderDb(){
   var q=($('#dbQ').value||'').toLowerCase();
-  var list=allFoods().filter(function(f){return !q||f.n.toLowerCase().indexOf(q)>-1});
-  $('#dbBox').innerHTML=list.map(function(f){
-    var custom=S.db.indexOf(f)>-1;
-    return '<div class="item"><div class="t"><strong>'+esc(f.n)+'</strong><div class="s">'+f0(f.k)+' kcal · P '+f1(f.p)+' · C '+f1(f.c)+' · F '+f1(f.f)+(custom?' · eigene':'')+'</div></div>'+
-      (custom?'<button class="btn small danger" onclick="delFood('+S.db.indexOf(f)+')">Löschen</button>':'')+'</div>'}).join('')||'<p class="muted">Nichts gefunden.</p>';
+  dbShown=allFoods().filter(function(f){return !q||f.n.toLowerCase().indexOf(q)>-1});
+  $('#dbBox').innerHTML=dbShown.map(function(f,i){
+    var di=S.db.indexOf(f),fav=S.favs.indexOf(f.n)>-1;
+    return '<div class="item"><div class="t"><strong>'+esc(f.n)+'</strong><div class="s">'+f0(f.k)+' kcal · P '+f1(f.p)+' · C '+f1(f.c)+' · F '+f1(f.f)+(di>-1?' · eigene':'')+'</div></div><div class="row"><button class="btn small" onclick="toggleFav('+i+')" aria-label="Favorit" aria-pressed="'+fav+'">'+(fav?'★':'☆')+'</button>'+
+      (di>-1?'<button class="btn small danger" onclick="delFood('+di+')">Löschen</button>':'')+'</div></div>'}).join('')||'<p class="muted">Nichts gefunden.</p>';
+}
+function toggleFav(i){
+  var n=dbShown[i].n,k=S.favs.indexOf(n);
+  if(k>-1)S.favs.splice(k,1);else S.favs.push(n);
+  save();renderDb();
 }
 function delFood(i){S.db.splice(i,1);save();renderDb();toast('Gelöscht')}
 
@@ -590,6 +705,13 @@ function delFood(i){S.db.splice(i,1);save();renderDb();toast('Gelöscht')}
 function renderGoals(){
   $('#modeSeg').innerHTML=Object.keys(MODES).map(function(m){return '<button aria-pressed="'+(S.mode===m)+'" onclick="setMode(\''+m+'\')">'+MODES[m].label+'</button>'}).join('');
   var t=target();$('#gK').value=t.k;$('#gP').value=t.p;$('#gC').value=t.c;$('#gF').value=t.f;
+  updateBkInfo();
+}
+var persisted=null;
+function updateBkInfo(){
+  var bk=$('#bkInfo');if(!bk)return;
+  var lb=S.meta.lastBackup;
+  bk.textContent='Letztes Backup: '+(lb?new Date(lb).toLocaleDateString('de-DE')+' ('+Math.floor((Date.now()-lb)/86400000)+' Tage her)':'noch nie')+'. Dauerhafter Speicher: '+(persisted===true?'aktiv':persisted===false?'nicht garantiert':'wird geprüft')+'.';
 }
 function setMode(m){S.mode=m;save();renderGoals();$('#modeBadge').textContent=MODES[m].label}
 function saveGoals(){
@@ -598,14 +720,23 @@ function saveGoals(){
 }
 function resetGoals(){var m=MODES[S.mode];S.targets[S.mode]={k:m.k,p:m.p,c:m.c,f:m.f};save();renderGoals()}
 function exportData(){
-  var b=new Blob([JSON.stringify(S)],{type:'application/json'});
-  var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='makro-tracker-backup.json';document.body.appendChild(a);a.click();a.remove();
+  var json=JSON.stringify(S),name='makro-tracker-backup-'+dayKey(new Date())+'.json';
+  var done=function(){S.meta.lastBackup=Date.now();save();renderBanner();updateBkInfo();toast('Backup gesichert')};
+  try{
+    var file=new File([json],name,{type:'application/json'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:'Makro-Tracker Backup'}).then(done).catch(function(){});return;
+    }
+  }catch(e){}
+  var b=new Blob([json],{type:'application/json'}),a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove();done();
 }
 function importData(e){
   var f=e.target.files[0];if(!f)return;
-  f.text().then(function(t){try{S=Object.assign(defaultState(),JSON.parse(t));save();show('today');toast('Backup geladen')}catch(x){toast('Datei ungültig')}});
+  f.text().then(function(t){try{S=Object.assign(defaultState(),JSON.parse(t));S.meta=Object.assign({lastBackup:0,snooze:0},S.meta||{});S.meta.lastBackup=Date.now();S.db.forEach(function(f){f.n=cleanName(f.n)});save();show('today');toast('Backup geladen')}catch(x){toast('Datei ungültig')}});
 }
 
+try{if(navigator.storage&&navigator.storage.persist){navigator.storage.persist().then(function(p){persisted=p;updateBkInfo()})}}catch(e){}
 show('today');
 if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
 </script>
