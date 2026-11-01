@@ -332,7 +332,63 @@ var BASE=[
  {n:'Apfelmus (ungesüßt)',k:68,p:0.3,c:15.5,f:0.2,a:['apfelmus']},
  {n:'Milch 1.5 %',k:47,p:3.4,c:4.8,f:1.5,a:['milch','fettarme milch']},
  {n:'Vollmilch 3.5 %',k:64,p:3.3,c:4.8,f:3.6,a:['vollmilch']},
- {n:'Zucker',k:400,p:0.0,c:100.0,f:0.0,sp:12,a:['haushaltszucker','kristallzucker']}
+ {n:'Zucker',k:400,p:0.0,c:100.0,f:0.0,sp:12,a:['haushaltszucker','kristallzucker']},
+ {n:'Rinderfilet',k:135,p:21.5,c:0,f:5,a:['rinderfilet','tenderloin']},
+ {n:'Rumpsteak',k:150,p:21.5,c:0,f:6.5,a:['rumpsteak','hüftsteak','huftsteak','rinderhüfte','rump']},
+ {n:'Entrecôte / Ribeye',k:235,p:19.5,c:0,f:17,e:1,a:['entrecote','entrecôte','ribeye','rib eye','hochrippe','rinderrücken']},
+ {n:'Flanksteak',k:155,p:21,c:0,f:7,a:['flanksteak','flank','skirt steak']},
+ {n:'Rindergulasch (mager)',k:125,p:21.5,c:0,f:4,a:['rindergulasch','gulasch','schmorfleisch','rinderschmorfleisch']},
+ {n:'Rinderbrust',k:250,p:18,c:0,f:20,e:1,a:['rinderbrust','brisket']},
+ {n:'Rinderhack mager (5 %)',k:137,p:21,c:0,f:5,a:['rinderhack mager','rinderhackfleisch mager','hack mager']},
+ {n:'Rinderhack (15 % Fett)',k:215,p:18.5,c:0,f:15.5,e:1,a:['rinderhack','rinderhackfleisch','hack']},
+ {n:'Rinderleber',k:135,p:20.5,c:3.5,f:3.6,a:['rinderleber','leber']},
+ {n:'Schweinefilet',k:108,p:22,c:0,f:2.2,a:['schweinefilet']},
+ {n:'Schweinekotelett',k:160,p:21,c:0,f:8,a:['schweinekotelett','kotelett','schweinerücken']},
+ {n:'Schweinenacken',k:200,p:18,c:0,f:14.5,e:1,a:['schweinenacken','nackensteak','kamm','schweinekamm']},
+ {n:'Schweinebauch',k:340,p:14.5,c:0,f:31,e:1,a:['schweinebauch','bauchfleisch']},
+ {n:'Schweineschnitzel',k:112,p:21.5,c:0,f:2.8,a:['schweineschnitzel','schnitzel']},
+ {n:'Schweinehack',k:245,p:17.5,c:0,f:19,e:1,a:['schweinehack','schweinehackfleisch']},
+ {n:'Gemischtes Hack (Rind/Schwein)',k:250,p:17,c:0,f:20,e:1,a:['gemischtes hack','hackfleisch','hackfleisch gemischt']},
+ {n:'Speck / Bacon (roh)',k:415,p:13.5,c:0.5,f:40,e:1,a:['bacon','speck','frühstücksspeck','schinkenspeck']},
+ {n:'Kochschinken',k:110,p:19,c:0.8,f:3.5,a:['kochschinken','schinken']},
+ {n:'Hähnchenschenkel (mit Haut)',k:200,p:17,c:0,f:15,e:1,a:['hähnchenschenkel','haehnchenschenkel','hähnchenkeule','hühnerkeule','hähnchenoberschenkel','chicken thigh']},
+ {n:'Hähnchenschenkel (ohne Haut)',k:125,p:19.5,c:0,f:4.5,a:['hähnchenschenkel ohne haut','oberschenkelfilet','hähnchenschenkelfilet']},
+ {n:'Hähnchenflügel',k:215,p:18,c:0,f:16,e:1,a:['hähnchenflügel','hähnchenflügel','chicken wings','wings']},
+ {n:'Putenschenkel (ohne Haut)',k:115,p:20.5,c:0,f:3.5,a:['putenschenkel','putenkeule']},
+ {n:'Putenhack',k:140,p:20,c:0,f:6.5,a:['putenhack','putenhackfleisch']},
+ {n:'Geflügelleber',k:120,p:19,c:0.7,f:4.8,a:['geflügelleber','hühnerleber','hähnchenleber']},
+ {n:'Entenbrust (mit Haut)',k:230,p:18.5,c:0,f:17,e:1,a:['entenbrust','ente']},
+ {n:'Entenkeule (mit Haut)',k:210,p:16,c:0,f:16,e:1,a:['entenkeule']},
+ {n:'Lammkeule',k:150,p:20,c:0,f:7.5,a:['lammkeule','lamm']},
+ {n:'Lammkotelett / Lammrücken',k:225,p:17,c:0,f:17.5,e:1,a:['lammkotelett','lammrücken','lammkarree','lammkrone']},
+ {n:'Lammhack',k:250,p:17,c:0,f:20,e:1,a:['lammhack']},
+ {n:'Kalbsschnitzel / Kalbsfilet',k:100,p:21.5,c:0,f:1.5,a:['kalbsschnitzel','kalbsfilet','kalb','kalbfleisch']},
+ {n:'Kalbshaxe',k:105,p:20,c:0,f:2.5,a:['kalbshaxe','ossobuco']},
+ {n:'Reh',k:110,p:22,c:0,f:2,a:['reh','rehrücken','rehkeule']},
+ {n:'Hirsch',k:110,p:22.5,c:0,f:1.5,a:['hirsch','hirschrücken','hirschkeule']},
+ {n:'Wildschwein',k:120,p:21.5,c:0,f:3.5,a:['wildschwein']},
+ {n:'Kaninchen',k:135,p:21,c:0,f:5,a:['kaninchen']},
+ {n:'Bratwurst (roh)',k:300,p:12.5,c:1,f:27.5,e:1,a:['bratwurst','rostbratwurst']},
+ {n:'Salami',k:430,p:20,c:1,f:38,e:1,a:['salami']},
+ {n:'Leberkäse / Fleischkäse',k:285,p:12,c:1,f:26,e:1,a:['leberkäse','leberkaese','fleischkäse']},
+ {n:'Wiener Würstchen',k:270,p:11,c:1,f:24,e:1,a:['wiener','würstchen','bockwurst','wiener würstchen']},
+ {n:'Obstkuchen',k:215,p:3.5,c:32,f:8.5,piece:120,e:1,a:['kuchen','obstkuchen','johannisbeerkuchen','apfelkuchen','kirschkuchen','erdbeerkuchen','pflaumenkuchen','zwetschgenkuchen','rhabarberkuchen','blechkuchen','hefekuchen']},
+ {n:'Käsekuchen',k:250,p:8,c:28,f:12.5,piece:130,e:1,a:['käsekuchen','kaesekuchen','quarkkuchen','cheesecake']},
+ {n:'Streuselkuchen',k:375,p:5,c:52,f:16.5,piece:90,e:1,a:['streuselkuchen','butterkuchen']},
+ {n:'Sahnetorte',k:270,p:3.5,c:27,f:17,piece:130,e:1,a:['sahnetorte','torte','buttercremetorte','schwarzwälder kirschtorte']},
+ {n:'Rührkuchen / Marmorkuchen',k:395,p:5.5,c:49,f:20,piece:75,e:1,a:['rührkuchen','marmorkuchen','sandkuchen','gugelhupf','napfkuchen']},
+ {n:'Schokokuchen / Brownie',k:420,p:6,c:48,f:23,piece:70,e:1,a:['schokokuchen','schokoladenkuchen','brownie']},
+ {n:'Muffin',k:385,p:5,c:50,f:18,piece:100,e:1,a:['muffin']},
+ {n:'Donut',k:410,p:5.5,c:46,f:22,piece:65,e:1,a:['donut','doughnut']},
+ {n:'Berliner',k:365,p:6,c:45,f:17,piece:80,e:1,a:['berliner','krapfen']},
+ {n:'Croissant',k:410,p:8,c:44,f:22,piece:60,e:1,a:['croissant','buttercroissant']},
+ {n:'Plundergebäck / Blätterteig',k:380,p:5.5,c:42,f:21,piece:90,e:1,a:['plunder','plundergebäck','blätterteig','apfeltasche','franzbrötchen','schnecke','nussecke']},
+ {n:'Laugenbrezel',k:270,p:8,c:50,f:3.5,piece:100,e:1,a:['brezel','breze','brezn','laugenbrezel','laugenstange','laugenbrötchen']},
+ {n:'Brötchen (Weizen)',k:270,p:9,c:52,f:1.5,piece:55,e:1,a:['brötchen','semmel','weckle','schrippe','weizenbrötchen']},
+ {n:'Vollkornbrötchen',k:245,p:9.5,c:42,f:2.5,piece:60,e:1,a:['vollkornbrötchen','körnerbrötchen']},
+ {n:'Mischbrot',k:225,p:7,c:44,f:1.2,piece:50,e:1,a:['brot','mischbrot','graubrot','scheibe brot']},
+ {n:'Vollkornbrot',k:205,p:7.5,c:37,f:1.5,piece:50,e:1,a:['vollkornbrot','schwarzbrot','roggenbrot']},
+ {n:'Toastbrot',k:265,p:8,c:49,f:3.5,piece:25,e:1,a:['toast','toastbrot']}
 ];
 function defaultState(){
   var t={};for(var m in MODES){t[m]={k:MODES[m].k,p:MODES[m].p,c:MODES[m].c,f:MODES[m].f}}
@@ -420,12 +476,14 @@ function fbHtml(list){return list.map(function(x){return '<p class="'+x.l+'">'+e
 
 /* ---------- Heute ---------- */
 function shiftDay(d){viewDay=new Date(viewDay.getTime()+d*86400000);renderToday()}
+function dayEst(key){var s=0;(S.log[key]||[]).forEach(function(m){m.items.forEach(function(i){if(i.e)s+=i.k})});return s}
+function estNote(est,tot){return est>0&&tot>0?'<p class="muted" style="margin:8px 0 0">~ davon geschätzt: '+f0(est)+' kcal ('+f0(est/tot*100)+' %)</p>':''}
 function renderToday(){
   var key=dayKey(viewDay),tg=target(),tot=dayTotals(key);
   var isToday=key===dayKey(new Date());
   $('#dateLabel').textContent=isToday?'Heute, '+viewDay.toLocaleDateString('de-DE',{day:'numeric',month:'long'}):viewDay.toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'long'});
   $('#modeBadge').textContent=MODES[S.mode].label;
-  $('#statusBox').innerHTML='<div class="hero"><span class="big">'+f0(tot.k)+'</span><span class="sub">von '+f0(tg.k)+' kcal</span></div>'+statusTable(tot,tg);
+  $('#statusBox').innerHTML='<div class="hero"><span class="big">'+f0(tot.k)+'</span><span class="sub">von '+f0(tg.k)+' kcal</span></div>'+statusTable(tot,tg)+estNote(dayEst(key),tot.k);
   $('#fbBox').innerHTML=fbHtml(feedback(tot,tg));
   renderMeals(key);renderBanner();renderCopy(key);
 }
@@ -438,7 +496,7 @@ function renderMeals(key){
     var t=sum(m.items),id=key+'|'+m.id;
     return '<details class="meal" ontoggle="tg(\''+id+'\',this)"'+(openMeals[id]?' open':'')+'><summary><span>'+esc(m.t)+' Uhr</span><span class="meta">'+f0(t.k)+' kcal · P '+f1(t.p)+' · C '+f1(t.c)+' · F '+f1(t.f)+'</span></summary>'+
     '<div class="scroll"><table class="tbl"><thead><tr><th>Zutat</th><th>g</th><th>kcal</th><th>P</th><th>C</th><th>F</th><th></th></tr></thead><tbody>'+
-    m.items.map(function(i,ii){return '<tr><td>'+esc(i.n)+'</td><td><input inputmode="decimal" value="'+f1(i.g).replace('.','')+'" onchange="editItem(\''+key+'\','+mi+','+ii+',this.value)" aria-label="Menge"></td><td>'+f0(i.k)+'</td><td>'+f1(i.p)+'</td><td>'+f1(i.c)+'</td><td>'+f1(i.f)+'</td><td><button class="btn small" onclick="delItem(\''+key+'\','+mi+','+ii+')" aria-label="Zutat entfernen">×</button></td></tr>'}).join('')+
+    m.items.map(function(i,ii){return '<tr><td>'+esc(i.n)+(i.e?' ~':'')+'</td><td><input inputmode="decimal" value="'+f1(i.g).replace('.','')+'" onchange="editItem(\''+key+'\','+mi+','+ii+',this.value)" aria-label="Menge"></td><td>'+f0(i.k)+'</td><td>'+f1(i.p)+'</td><td>'+f1(i.c)+'</td><td>'+f1(i.f)+'</td><td><button class="btn small" onclick="delItem(\''+key+'\','+mi+','+ii+')" aria-label="Zutat entfernen">×</button></td></tr>'}).join('')+
     '</tbody></table></div><div class="row" style="margin-top:8px"><button class="btn small" onclick="dupMeal(\''+key+'\','+mi+')">Heute nochmal</button><button class="btn small danger" onclick="delMeal(\''+key+'\','+mi+')">Mahlzeit löschen</button></div></details>';
   }).join('');
 }
@@ -485,18 +543,18 @@ function delMeal(key,i){S.log[key].splice(i,1);if(!S.log[key].length)delete S.lo
 var draft=[],missing=[];
 function findFood(q){
   q=q.toLowerCase().trim();if(!q)return null;
-  var best=null,bs=0;
+  var best=null,bs=0,bl=0;
   allFoods().forEach(function(fd){
     var terms=[fd.n.toLowerCase()].concat((fd.a||[]).map(function(x){return x.toLowerCase()}));
-    var sc=0;
+    var sc=0,sl=0;
     terms.forEach(function(t){
       var s=0;
       if(t===q)s=4;
       else if(q.length>=3&&(t.indexOf(q)===0||q.indexOf(t)===0))s=3;
       else if(q.length>=3&&t.length>=3&&(t.indexOf(q)>-1||q.indexOf(t)>-1))s=2;
-      if(s>sc)sc=s;
+      if(s>sc||(s===sc&&s>0&&t.length>sl)){sc=s;sl=t.length}
     });
-    if(sc>bs){bs=sc;best=fd}
+    if(sc>bs||(sc===bs&&sc>0&&sc<4&&sl>bl)){bs=sc;bl=sl;best=fd}
   });
   return bs>=2?best:null;
 }
@@ -575,23 +633,23 @@ function renderDraft(){
     var t=sum(rows);
     h+='<div class="card"><h2>Nährwert-Check</h2><div class="scroll"><table class="tbl"><thead><tr><th>Zutat</th><th>g</th><th>kcal</th><th>P</th><th>C</th><th>F</th><th></th></tr></thead><tbody>'+
     draft.map(function(d,i){var c=rows[i];
-      return '<tr><td>'+esc(d.food.n)+'</td><td><input inputmode="decimal" value="'+f1(d.g).replace('.','')+'" onchange="setG('+i+',this.value)" aria-label="Gramm"></td><td>'+f0(c.k)+'</td><td>'+f1(c.p)+'</td><td>'+f1(c.c)+'</td><td>'+f1(c.f)+'</td><td><button class="btn small" onclick="rmDraft('+i+')" aria-label="Entfernen">×</button></td></tr>'}).join('')+
+      return '<tr><td>'+esc(d.food.n)+(d.food.e?' ~':'')+'</td><td><input inputmode="decimal" value="'+f1(d.g).replace('.','')+'" onchange="setG('+i+',this.value)" aria-label="Gramm"></td><td>'+f0(c.k)+'</td><td>'+f1(c.p)+'</td><td>'+f1(c.c)+'</td><td>'+f1(c.f)+'</td><td><button class="btn small" onclick="rmDraft('+i+')" aria-label="Entfernen">×</button></td></tr>'}).join('')+
     '</tbody><tfoot><tr><td>Summe</td><td></td><td>'+f0(t.k)+'</td><td>'+f1(t.p)+'</td><td>'+f1(t.c)+'</td><td>'+f1(t.f)+'</td><td></td></tr></tfoot></table></div><div class="row" style="margin-top:12px"><input class="grow" id="rName" placeholder="Als Routine speichern, z. B. Frühstück"><button class="btn" onclick="saveRoutineFromDraft()">Speichern</button></div></div>';
     var key=dayKey(new Date()),tg=target(),tot=sum([dayTotals(key),t]);
-    h+='<div class="card"><h2>Tagesstatus inkl. Mahlzeit</h2>'+statusTable(tot,tg)+'</div>';
+    h+='<div class="card"><h2>Tagesstatus inkl. Mahlzeit</h2>'+statusTable(tot,tg)+estNote(dayEst(key)+draft.reduce(function(a,d,i){return a+(d.food.e?rows[i].k:0)},0),tot.k)+'</div>';
     h+='<div class="card"><h2>Taktischer Status</h2><div class="fb">'+fbHtml(feedback(tot,tg))+'</div></div>';
     h+='<button class="btn primary" style="width:100%" onclick="addToDay()">Zu heute hinzufügen</button>';
   }
   if(missing.length){
     h+='<div class="card"><h2>Nicht gefunden</h2><div class="list">'+missing.map(function(m,i){
-      return '<div class="item"><div class="t"><strong>'+esc(m.name)+'</strong><div class="s">'+f1(m.g)+' g</div></div><div class="row"><button class="btn small" onclick="lookup('+i+')">Online suchen</button><button class="btn small" onclick="manualFor('+i+')">Manuell</button><button class="btn small" onclick="dropMissing('+i+')" aria-label="Verwerfen">×</button></div></div>'}).join('')+'</div></div>';
+      return '<div class="item"><div class="t"><strong>'+esc(m.name)+'</strong><div class="s">'+f1(m.g)+' g</div></div><div class="row"><button class="btn small" onclick="lookup('+i+')">Online suchen</button><button class="btn small" onclick="manualFor('+i+')">Manuell</button><button class="btn small" onclick="estOpenFor('+i+')">Schätzen</button><button class="btn small" onclick="dropMissing('+i+')" aria-label="Verwerfen">×</button></div></div>'+(estOpen===i?estPicker(i):'')}).join('')+'</div></div>';
   }
   box.innerHTML=h;
   var nr=$('#rName');if(nr&&routineName)nr.value=routineName;
 }
 function addToDay(){
   if(!draft.length)return;
-  var items=draft.map(function(d){var c=calc(d.food,d.g);return {n:d.food.n,g:d.g,k:c.k,p:c.p,c:c.c,f:c.f}});
+  var items=draft.map(function(d){var c=calc(d.food,d.g);return {n:d.food.n,g:d.g,k:c.k,p:c.p,c:c.c,f:c.f,e:d.food.e?1:0}});
   var key=dayKey(new Date());
   (S.log[key]=S.log[key]||[]).push({id:newMealId(),t:nowTime(),items:items});
   noteRecent(draft);save();routineName='';rbMode=false;draft=[];missing=[];$('#mealText').value='';viewDay=new Date();
@@ -740,7 +798,30 @@ function voiceInput(id,btn){
 var pendingIdx=null,lastOff=[];
 function lookup(i){pendingIdx=i;$('#offQ').value=missing[i].name;$('#offG').value=String(missing[i].g);$('#newFoodCard').scrollIntoView({behavior:'smooth'});offSearch()}
 function manualFor(i){pendingIdx=i;$('#mName').value=missing[i].name;$('#offG').value=String(missing[i].g);$('#newFoodCard').scrollIntoView({behavior:'smooth'});$('#mK').focus()}
-function dropMissing(i){missing.splice(i,1);pendingIdx=null;renderDraft()}
+function dropMissing(i){missing.splice(i,1);pendingIdx=null;estOpen=-1;renderDraft()}
+var estOpen=-1;
+var EST=[
+ ['Kuchen leicht (Obst/Hefe)',210,3.5,32,8],
+ ['Kuchen/Torte reichhaltig',340,4.5,36,20],
+ ['Gebäck Blätterteig/Butter',400,6,42,23],
+ ['Brot/Brötchen',265,8.5,50,2],
+ ['Restaurantgericht',170,9,15,8],
+ ['Fastfood (Burger/Pizza/Pommes)',260,11,27,12],
+ ['Süßigkeiten/Schokolade',520,6,58,29],
+ ['Eis',210,3.5,25,11],
+ ['Herzhafter Snack (Chips)',500,6,50,30]
+];
+function estOpenFor(i){estOpen=estOpen===i?-1:i;renderDraft()}
+function estPicker(i){
+  return '<div class="card" style="background:var(--soft);margin:6px 0 10px"><p class="muted" style="margin:0 0 8px">Nächstliegende Kategorie wählen. Die Werte pro 100 g sind vorsichtig geschätzt und werden mit ~ markiert.</p><div class="chips">'+
+    EST.map(function(e,j){return '<button class="btn small" onclick="pickEst('+i+','+j+')">'+esc(e[0])+' · '+e[1]+' kcal</button>'}).join('')+'</div></div>';
+}
+function pickEst(i,j){
+  var m=missing[i],e=EST[j];if(!m||!e)return;
+  var f=addFoodToDb({n:cleanName(m.name),k:e[1],p:e[2],c:e[3],f:e[4],e:1});
+  pendingIdx=i;$('#offG').value=String(m.g);estOpen=-1;
+  useFood(f);toast('Als Schätzwert gespeichert: bei Bedarf in der Datenbank anpassen');
+}
 function offNut(p){
   var n=p.nutriments||{};
   var k=n['energy-kcal_100g'];if(k==null&&n['energy_100g']!=null)k=n['energy_100g']/4.184;
@@ -822,7 +903,7 @@ function renderDb(){
   dbShown=allFoods().filter(function(f){return !q||f.n.toLowerCase().indexOf(q)>-1});
   $('#dbBox').innerHTML=dbShown.map(function(f,i){
     var di=S.db.indexOf(f),fav=S.favs.indexOf(f.n)>-1;
-    return '<div class="item"><div class="t"><strong>'+esc(f.n)+'</strong><div class="s">'+f0(f.k)+' kcal · P '+f1(f.p)+' · C '+f1(f.c)+' · F '+f1(f.f)+(di>-1?(f.o?' · angepasst':' · eigene'):'')+'</div></div><div class="row"><button class="btn small" onclick="toggleFav('+i+')" aria-label="Favorit" aria-pressed="'+fav+'">'+(fav?'★':'☆')+'</button>'+
+    return '<div class="item"><div class="t"><strong>'+esc(f.n)+'</strong><div class="s">'+f0(f.k)+' kcal · P '+f1(f.p)+' · C '+f1(f.c)+' · F '+f1(f.f)+(di>-1?(f.o?' · angepasst':' · eigene'):'')+(f.e?' · Schätzwert ~':'')+'</div></div><div class="row"><button class="btn small" onclick="toggleFav('+i+')" aria-label="Favorit" aria-pressed="'+fav+'">'+(fav?'★':'☆')+'</button>'+
       '<button class="btn small" onclick="editFood('+i+')">Bearbeiten</button><button class="btn small danger" onclick="delFood('+i+')">Löschen</button></div></div>'}).join('')||'<p class="muted">Nichts gefunden.</p>';
   var nr=(S.hide||[]).length+S.db.filter(function(x){return x.o}).length;
   $('#dbReset').innerHTML=nr?'<button class="btn" style="margin-top:12px;width:100%" onclick="resetBase()">Standard-Lebensmittel wiederherstellen</button>':'';
@@ -843,7 +924,7 @@ function delFood(i){
 var editRef=null;
 function editFood(i){
   var f=dbShown[i];if(!f)return;editRef=f;
-  $('#dbEdit').innerHTML='<div class="card" style="background:var(--soft);margin:10px 0"><h3>Bearbeiten (pro 100 g)</h3><div class="grid4"><label class="f" style="grid-column:1/-1">Name<input id="eN" value="'+esc(f.n)+'"></label><label class="f">kcal<input id="eK" inputmode="decimal" value="'+esc(String(f.k).replace('.',','))+'"></label><label class="f">Protein (g)<input id="eP" inputmode="decimal" value="'+esc(String(f.p).replace('.',','))+'"></label><label class="f">Kohlenhydrate (g)<input id="eC" inputmode="decimal" value="'+esc(String(f.c).replace('.',','))+'"></label><label class="f">Fett (g)<input id="eF" inputmode="decimal" value="'+esc(String(f.f).replace('.',','))+'"></label></div><div class="row" style="margin-top:10px"><button class="btn primary grow" onclick="saveFoodEdit()">Speichern</button><button class="btn" onclick="cancelFoodEdit()">Abbrechen</button></div></div>';
+  $('#dbEdit').innerHTML='<div class="card" style="background:var(--soft);margin:10px 0"><h3>Bearbeiten (pro 100 g)</h3><div class="grid4"><label class="f" style="grid-column:1/-1">Name<input id="eN" value="'+esc(f.n)+'"></label><label class="f">kcal<input id="eK" inputmode="decimal" value="'+esc(String(f.k).replace('.',','))+'"></label><label class="f">Protein (g)<input id="eP" inputmode="decimal" value="'+esc(String(f.p).replace('.',','))+'"></label><label class="f">Kohlenhydrate (g)<input id="eC" inputmode="decimal" value="'+esc(String(f.c).replace('.',','))+'"></label><label class="f">Fett (g)<input id="eF" inputmode="decimal" value="'+esc(String(f.f).replace('.',','))+'"></label><label class="row" style="grid-column:1/-1;gap:8px"><input type="checkbox" id="eE" style="width:auto"'+(f.e?' checked':'')+'> Schätzwert (mit ~ markieren)</label></div><div class="row" style="margin-top:10px"><button class="btn primary grow" onclick="saveFoodEdit()">Speichern</button><button class="btn" onclick="cancelFoodEdit()">Abbrechen</button></div></div>';
   $('#dbEdit').scrollIntoView({block:'center'});
 }
 function cancelFoodEdit(){editRef=null;$('#dbEdit').innerHTML=''}
@@ -855,10 +936,10 @@ function saveFoodEdit(){
   if(k<0||p<0||c<0||fa<0||k>1000||p>100||c>100||fa>100){toast('Werte unplausibel (pro 100 g)');return}
   var clash=allFoods().some(function(x){return x!==f&&x.n.toLowerCase()===n.toLowerCase()});
   if(clash){toast('Name existiert schon');return}
-  var oldN=f.n,di=S.db.indexOf(f);
-  if(di>-1){f.n=n;f.k=k;f.p=p;f.c=c;f.f=fa}
+  var oldN=f.n,di=S.db.indexOf(f),eE=$('#eE'),ev=eE&&eE.checked?1:0;
+  if(di>-1){f.n=n;f.k=k;f.p=p;f.c=c;f.f=fa;if(ev)f.e=1;else delete f.e}
   else{
-    var nf=Object.assign({},f,{n:n,k:k,p:p,c:c,f:fa,o:1,o0:f.n});
+    var nf=Object.assign({},f,{n:n,k:k,p:p,c:c,f:fa,e:ev,o:1,o0:f.n});
     S.db.unshift(nf);(S.hide||(S.hide=[])).push(f.n.toLowerCase());
   }
   if(n!==oldN){var fi=S.favs.indexOf(oldN);if(fi>-1)S.favs[fi]=n}
