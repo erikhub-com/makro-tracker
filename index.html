@@ -153,7 +153,7 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
         <button class="btn primary grow" onclick="calcMeal()">Berechnen</button>
         <button class="btn" onclick="clearDraft()">Leeren</button>
       </div>
-      <p class="muted" style="margin:10px 0 0">Mehrere Zutaten mit Komma trennen. Ohne Einheit zählen Eier als Stück, alles andere als Gramm. Gespeicherte Routinen lädst du über den Namen, z. B. „Cappuccino“ oder „2x Cappuccino“.</p>
+      <p class="muted" style="margin:10px 0 0">Mehrere Zutaten mit Komma trennen. Einheiten: g, kg, ml, l, EL, TL. Ohne Einheit zählen Eier als Stück, alles andere als Gramm. Gespeicherte Routinen lädst du über den Namen, z. B. „Cappuccino“ oder „2x Cappuccino“.</p>
     </div>
 
     <div id="draftBox"></div>
@@ -161,8 +161,17 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
     <div class="card">
       <h2>Routinen</h2>
       <div id="routineChips" class="row"></div>
+      <details style="margin-top:12px" open>
+        <summary class="muted" style="cursor:pointer">Neue Routine aus Zutaten</summary>
+        <div class="grid4" style="margin-top:10px">
+          <label class="f" style="grid-column:1/-1">Name<input id="rbName" placeholder="z. B. Cappuccino"></label>
+          <label class="f" style="grid-column:1/-1">Zutaten<textarea id="rbText" rows="3" placeholder="z. B. 100 ml Milch, 1 EL Zucker, 1 Espresso"></textarea></label>
+        </div>
+        <p class="muted" style="margin:8px 0 0">Zutaten mit Komma trennen. Fehlende Lebensmittel kannst du danach online suchen oder manuell anlegen. Die Routine speicherst du dann unter der Berechnung.</p>
+        <button class="btn primary" style="margin-top:10px;width:100%" onclick="buildRoutine()">Zutaten berechnen</button>
+      </details>
       <details style="margin-top:12px">
-        <summary class="muted" style="cursor:pointer">Neue Routine mit festen Werten</summary>
+        <summary class="muted" style="cursor:pointer">Routine mit festen Werten (ohne Zutaten)</summary>
         <div class="grid4" style="margin-top:10px">
           <label class="f" style="grid-column:1/-1">Name<input id="rnName" placeholder="z. B. Cappuccino"></label>
           <label class="f">kcal<input id="rnK" inputmode="decimal"></label>
@@ -318,7 +327,10 @@ var BASE=[
  {n:'Reis (ungekocht)',k:350,p:7.0,c:77.0,f:0.8,a:['reis']},
  {n:'Kartoffeln (gekocht)',k:70,p:2.0,c:15.0,f:0.1,a:['kartoffel','kartoffeln']},
  {n:'Vollei (Gr. M)',k:136,p:11.9,c:0.6,f:9.2,piece:53,a:['ei','eier','vollei','vollei']},
- {n:'Apfelmus (ungesüßt)',k:68,p:0.3,c:15.5,f:0.2,a:['apfelmus']}
+ {n:'Apfelmus (ungesüßt)',k:68,p:0.3,c:15.5,f:0.2,a:['apfelmus']},
+ {n:'Milch 1.5 %',k:47,p:3.4,c:4.8,f:1.5,a:['milch','fettarme milch']},
+ {n:'Vollmilch 3.5 %',k:64,p:3.3,c:4.8,f:3.6,a:['vollmilch']},
+ {n:'Zucker',k:400,p:0.0,c:100.0,f:0.0,sp:12,a:['haushaltszucker','kristallzucker']}
 ];
 function defaultState(){
   var t={};for(var m in MODES){t[m]={k:MODES[m].k,p:MODES[m].p,c:MODES[m].c,f:MODES[m].f}}
@@ -488,8 +500,8 @@ function findFood(q){
 }
 function parseMeal(text){
   var parts=text.split(/\n|;|\+|(?<!\d),(?!\d)|\sund\s|\s&\s/i).map(function(s){return s.trim()}).filter(Boolean);
-  var re1=/^(\d+(?:[.,]\d+)?)\s*(?:(kg|gr|g|ml|l|stk|stück|x)(?![a-zäöüß]))?\.?\s*(.+)$/i;
-  var re2=/^(.+?)\s+(\d+(?:[.,]\d+)?)\s*(?:(kg|gr|g|ml|l|stk|stück)(?![a-zäöüß]))?$/i;
+  var re1=/^(\d+(?:[.,]\d+)?)\s*(?:(kg|gr|g|ml|el|tl|l|stk|stück|x)(?![a-zäöüß]))?\.?\s*(.+)$/i;
+  var re2=/^(.+?)\s+(\d+(?:[.,]\d+)?)\s*(?:(kg|gr|g|ml|el|tl|l|stk|stück)(?![a-zäöüß]))?$/i;
   var res={items:[],missing:[]};
   parts.forEach(function(p){
     p=p.replace(/^[\/@]\s*/,'');
@@ -504,6 +516,7 @@ function parseMeal(text){
     var fd=findFood(name);
     var g;
     if(unit==='kg'||unit==='l')g=(qty||0)*1000;
+    else if(unit==='el'||unit==='tl'){var sp=(fd&&fd.sp)||15;g=(qty||0)*(unit==='el'?sp:sp/3)}
     else if(unit==='g'||unit==='gr'||unit==='ml')g=qty||0;
     else if(qty===null)g=fd&&fd.piece?fd.piece:100;
     else g=fd&&fd.piece?qty*fd.piece:qty;
@@ -519,14 +532,15 @@ function calcMeal(){
   renderDraft();
   if(missing.length)toast(missing.length+' Lebensmittel nicht in der Datenbank');
 }
-function clearDraft(){draft=[];missing=[];$('#mealText').value='';$('#sugBox').innerHTML='';renderDraft()}
+var routineName='',rbMode=false;
+function clearDraft(){routineName='';rbMode=false;draft=[];missing=[];$('#mealText').value='';$('#sugBox').innerHTML='';renderDraft()}
 var sugState={base:'',list:[]};
 function suggest(){
   var box=$('#sugBox');if(!box)return;
   var v=$('#mealText').value;
   var idx=Math.max(v.lastIndexOf(','),v.lastIndexOf(';'),v.lastIndexOf('+'),v.lastIndexOf('\n'));
   var tok=v.slice(idx+1);
-  var m=tok.match(/^(\s*[\/@]?\s*(?:\d+(?:[.,]\d+)?\s*(?:(?:kg|gr|g|ml|l|stk|stück|x)(?![a-zäöüß]))?\s*)?)(.*)$/i);
+  var m=tok.match(/^(\s*[\/@]?\s*(?:\d+(?:[.,]\d+)?\s*(?:(?:kg|gr|g|ml|el|tl|l|stk|stück|x)(?![a-zäöüß]))?\s*)?)(.*)$/i);
   var q=(m?m[2]:tok).trim().toLowerCase();
   if(q.length<2){box.innerHTML='';sugState.list=[];return}
   var out=[];
@@ -551,6 +565,7 @@ function setG(i,v){draft[i].g=num(v);renderDraft()}
 function rmDraft(i){draft.splice(i,1);renderDraft()}
 function renderDraft(){
   var box=$('#draftBox');
+  var cr=$('#rName');if(cr&&cr.value)routineName=cr.value;
   if(!draft.length&&!missing.length){box.innerHTML='';return}
   var h='';
   if(draft.length){
@@ -570,13 +585,14 @@ function renderDraft(){
       return '<div class="item"><div class="t"><strong>'+esc(m.name)+'</strong><div class="s">'+f1(m.g)+' g</div></div><div class="row"><button class="btn small" onclick="lookup('+i+')">Online suchen</button><button class="btn small" onclick="manualFor('+i+')">Manuell</button><button class="btn small" onclick="dropMissing('+i+')" aria-label="Verwerfen">×</button></div></div>'}).join('')+'</div></div>';
   }
   box.innerHTML=h;
+  var nr=$('#rName');if(nr&&routineName)nr.value=routineName;
 }
 function addToDay(){
   if(!draft.length)return;
   var items=draft.map(function(d){var c=calc(d.food,d.g);return {n:d.food.n,g:d.g,k:c.k,p:c.p,c:c.c,f:c.f}});
   var key=dayKey(new Date());
   (S.log[key]=S.log[key]||[]).push({id:newMealId(),t:nowTime(),items:items});
-  noteRecent(draft);save();draft=[];missing=[];$('#mealText').value='';viewDay=new Date();
+  noteRecent(draft);save();routineName='';rbMode=false;draft=[];missing=[];$('#mealText').value='';viewDay=new Date();
   show('today');toast('Mahlzeit gespeichert');
 }
 
@@ -605,6 +621,19 @@ function saveRoutineFromDraft(){
   if(!draft.length)return;
   upsertRoutine({name:n,items:draft.map(function(d){return {food:Object.assign({},d.food),g:d.g}})});
   toast('Routine „'+n+'“ gespeichert');
+  if(rbMode){rbMode=false;clearDraft();window.scrollTo({top:0,behavior:'smooth'})}
+}
+function buildRoutine(){
+  var n=cleanName($('#rbName').value||''),t=($('#rbText').value||'').trim();
+  if(!n){toast('Name fehlt');return}
+  if(!t){toast('Bitte Zutaten eingeben');return}
+  var r=parseMeal(t);
+  r.items=r.items.map(function(x){return {food:x.food,g:x.g}});
+  if(!r.items.length&&!r.missing.length){toast('Keine Zutaten erkannt');return}
+  draft=r.items;missing=r.missing;routineName=n;rbMode=true;$('#sugBox').innerHTML='';
+  renderDraft();
+  $('#draftBox').scrollIntoView({behavior:'smooth'});
+  toast(missing.length?missing.length+' Lebensmittel nicht in der Datenbank':'Prüfen und unten als Routine speichern');
 }
 function saveFixedRoutine(){
   var n=cleanName($('#rnName').value);if(!n){toast('Name fehlt');return}
