@@ -635,10 +635,10 @@ function renderDraft(){
     draft.map(function(d,i){var c=rows[i];
       return '<tr><td>'+esc(d.food.n)+(d.food.e?' ~':'')+'</td><td><input inputmode="decimal" value="'+f1(d.g).replace('.','')+'" onchange="setG('+i+',this.value)" aria-label="Gramm"></td><td>'+f0(c.k)+'</td><td>'+f1(c.p)+'</td><td>'+f1(c.c)+'</td><td>'+f1(c.f)+'</td><td><button class="btn small" onclick="rmDraft('+i+')" aria-label="Entfernen">×</button></td></tr>'}).join('')+
     '</tbody><tfoot><tr><td>Summe</td><td></td><td>'+f0(t.k)+'</td><td>'+f1(t.p)+'</td><td>'+f1(t.c)+'</td><td>'+f1(t.f)+'</td><td></td></tr></tfoot></table></div><div class="row" style="margin-top:12px"><input class="grow" id="rName" placeholder="Als Routine speichern, z. B. Frühstück"><button class="btn" onclick="saveRoutineFromDraft()">Speichern</button></div></div>';
+    h+='<button class="btn primary" style="width:100%;margin:0 0 12px" onclick="addToDay()">Zu heute hinzufügen</button>';
     var key=dayKey(new Date()),tg=target(),tot=sum([dayTotals(key),t]);
     h+='<div class="card"><h2>Tagesstatus inkl. Mahlzeit</h2>'+statusTable(tot,tg)+estNote(dayEst(key)+draft.reduce(function(a,d,i){return a+(d.food.e?rows[i].k:0)},0),tot.k)+'</div>';
     h+='<div class="card"><h2>Taktischer Status</h2><div class="fb">'+fbHtml(feedback(tot,tg))+'</div></div>';
-    h+='<button class="btn primary" style="width:100%" onclick="addToDay()">Zu heute hinzufügen</button>';
   }
   if(missing.length){
     h+='<div class="card"><h2>Nicht gefunden</h2><div class="list">'+missing.map(function(m,i){
