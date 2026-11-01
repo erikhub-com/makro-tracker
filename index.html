@@ -219,7 +219,17 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
       </label>
       <div id="offBox" class="list" style="margin-top:8px"></div>
 
-      <h3 style="margin-top:16px">Grundzutaten (unverpackt)</h3>
+      <h3 style="margin-top:16px">Mit Claude nachfragen</h3>
+      <p class="muted" style="margin:0 0 8px">Für alles, was nicht in der Datenbank ist, z. B. „Rotweinkuchen“. Die Frage wird kopiert und Claude geöffnet. Die Antwort kopierst du hier hinein.</p>
+      <div class="row">
+        <input class="grow" id="clQ" placeholder="z. B. Rotweinkuchen" onkeydown="if(event.key==='Enter')claudeAsk()">
+        <button class="btn primary" onclick="claudeAsk()">Claude fragen</button>
+      </div>
+      <textarea id="clImp" rows="3" style="margin-top:8px" placeholder="Antwort von Claude hier einfügen, z. B. Rotweinkuchen | 380 | 5 | 50 | 18 | 100"></textarea>
+      <button class="btn" style="margin-top:6px" onclick="claudeImport()">Antwort übernehmen</button>
+
+      <details class="help" style="margin-top:12px"><summary>Alternative: USDA-Suche (englische Datenbank)</summary>
+      <h3 style="margin-top:8px">Grundzutaten (unverpackt)</h3>
       <div class="row">
         <input class="grow" id="fdcQ" placeholder="z. B. Pak Choi, Rinderhüfte, Dinkel" enterkeyhint="search" onkeydown="if(event.key==='Enter')fdcSearch()">
         <button class="btn primary" onclick="fdcSearch()">Suchen</button>
@@ -229,6 +239,8 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
       <details class="help"><summary>Eigener USDA-Schlüssel (optional)</summary>
         <p class="muted" style="margin:8px 0">Ohne Schlüssel gibt es nur wenige Suchen pro Stunde. Ein kostenloser Schlüssel von api.data.gov/signup erlaubt deutlich mehr.</p>
         <div class="row"><input class="grow" id="fdcKey" placeholder="Schlüssel einfügen"><button class="btn" onclick="saveFdcKey()">Speichern</button></div>
+      </details>
+
       </details>
 
       <h3 style="margin-top:16px">Manuell eingeben (pro 100 g)</h3>
@@ -800,6 +812,7 @@ function parseMeal(text){
     var rcp=matchRecipe(p);
     if(rcp){res.items.push(recipeItem(rcp.r,rcp.frac));return}
     var name,qty=null,unit='';
+    p=p.replace(/^(ein|eine|einen|einem|einer)\s+(?!halb|viertel|dreiviertel|drittel)/i,'1 ');
     var m=p.match(re1);
     if(m){qty=parseQty(m[1]);unit=(m[2]||'').toLowerCase();name=m[3]}
     else{var m2=p.match(re2);if(m2){name=m2[1];qty=parseQty(m2[2]);unit=(m2[3]||'').toLowerCase()}else name=p}
@@ -812,7 +825,7 @@ function parseMeal(text){
     else if(qty===null)g=fd&&fd.piece?fd.piece:100;
     else g=fd&&fd.piece?qty*fd.piece:qty;
     if(fd)res.items.push({food:fd,g:g});
-    else{var rp=findRoutine(name,false);if(rp){rp.items.forEach(function(it){res.items.push({food:Object.assign({},it.food),g:it.g,routine:rp.name})})}else res.missing.push({name:name,g:g||100})}
+    else{var rp=findRoutine(name,false);if(rp){rp.items.forEach(function(it){res.items.push({food:Object.assign({},it.food),g:it.g,routine:rp.name})})}else{var wt=/^(g|gr|ml|kg|l|el|tl)$/.test(unit),pc=wt?0:(qty===null?1:qty);res.missing.push({name:name,g:pc?100:(g||100),pc:pc})}}
   });
   return res;
 }
@@ -885,7 +898,7 @@ function renderDraft(){
   }
   if(missing.length){
     h+='<div class="card"><h2>Nicht gefunden</h2><div class="list">'+missing.map(function(m,i){
-      return '<div class="item"><div class="t"><strong>'+esc(m.name)+'</strong><div class="s">'+f1(m.g)+' g</div></div><div class="row"><button class="btn small" onclick="lookup('+i+')">Online suchen</button><button class="btn small" onclick="fdcFor('+i+')">Grundzutat</button><button class="btn small" onclick="manualFor('+i+')">Manuell</button><button class="btn small" onclick="estOpenFor('+i+')">Schätzen</button><button class="btn small" onclick="dropMissing('+i+')" aria-label="Verwerfen">×</button></div></div>'+(estOpen===i?estPicker(i):'')}).join('')+'</div></div>';
+      return '<div class="item"><div class="t"><strong>'+esc(m.name)+'</strong><div class="s">'+f1(m.g)+' g</div></div><div class="row"><button class="btn small" onclick="lookup('+i+')">Online suchen</button><button class="btn small primary" onclick="claudeFor('+i+')">Claude</button><button class="btn small" onclick="manualFor('+i+')">Manuell</button><button class="btn small" onclick="estOpenFor('+i+')">Schätzen</button><button class="btn small" onclick="dropMissing('+i+')" aria-label="Verwerfen">×</button></div></div>'+(estOpen===i?estPicker(i):'')}).join('')+'</div></div>';
   }
   box.innerHTML=h;
   var nr=$('#rName');if(nr&&routineName)nr.value=routineName;
@@ -1238,6 +1251,54 @@ function fdcFor(i){
   $('#newFoodCard').scrollIntoView({behavior:'smooth'});fdcSearch();
 }
 
+/* ---------- Claude-Übergabe ---------- */
+function claudePrompt(name){
+  return 'Gib mir die durchschnittlichen Nährwerte pro 100 g für: '+name+'. Antworte nur mit einer Zeile ohne weiteren Text, genau in diesem Format: Name | kcal | Eiweiß g | Kohlenhydrate g | Fett g | typisches Gewicht eines Stücks oder einer Portion in g. Beispiel: Rotweinkuchen | 380 | 5 | 50 | 18 | 100';
+}
+function claudeAsk(){
+  var q=($('#clQ').value||'').trim();if(!q){toast('Bitte einen Namen eingeben');return}
+  var p=claudePrompt(q);
+  try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(p).catch(function(){})}catch(e){}
+  window.open('https://claude.ai/new?q='+encodeURIComponent(p),'_blank');
+  toast('Frage kopiert, Claude öffnet sich');
+}
+function claudeFor(i){
+  openSec('newFoodCard');pendingIdx=i;
+  $('#clQ').value=missing[i].name;$('#offG').value=String(missing[i].g);
+  $('#newFoodCard').scrollIntoView({behavior:'smooth'});claudeAsk();
+}
+function r1c(x){return Math.round(x*10)/10}
+function parseClaudeLine(l){
+  l=l.replace(/^\s*\|/,'').replace(/\|\s*$/,'');
+  var parts=l.split('|').map(function(x){return x.trim()});
+  if(parts.length<5)return null;
+  var n=cleanName(parts[0].replace(/[*_`#]/g,'').replace(/^[-•\s]+/,''));
+  var v=parts.slice(1,6).map(function(x){var m=x.match(/\d+(?:[.,]\d+)?/);return m?parseFloat(m[0].replace(',','.')):null});
+  if(!n||v[0]===null||v[1]===null||v[2]===null||v[3]===null)return null;
+  return {n:n,k:Math.round(v[0]),p:r1c(v[1]),c:r1c(v[2]),f:r1c(v[3]),piece:v[4]>0?Math.round(v[4]):0};
+}
+function claudeImport(){
+  var foods=($('#clImp').value||'').split(/\n/).map(parseClaudeLine).filter(Boolean);
+  if(!foods.length){toast('Keine passende Zeile. Format: Name | kcal | Eiweiß | KH | Fett | Stückgewicht');return}
+  var q=cleanName($('#clQ').value||'');
+  if(foods.length===1&&q)foods[0].n=q.charAt(0).toUpperCase()+q.slice(1);
+  var last=null;
+  foods.forEach(function(f){
+    var ex=S.db.filter(function(x){return x.n.toLowerCase()===f.n.toLowerCase()})[0];
+    var o={n:f.n,k:f.k,p:f.p,c:f.c,f:f.f,e:1,src:'Claude'};if(f.piece)o.piece=f.piece;
+    if(ex){ex.k=o.k;ex.p=o.p;ex.c=o.c;ex.f=o.f;ex.e=1;if(o.piece)ex.piece=o.piece;last=ex;save()}
+    else last=addFoodToDb(o);
+  });
+  $('#clImp').value='';
+  if(foods.length===1&&pendingIdx!==null&&missing[pendingIdx]){
+    var m=missing[pendingIdx];
+    if(m.pc&&last.piece)$('#offG').value=String(Math.round(m.pc*last.piece));
+    useFood(last);toast('In Datenbank gespeichert');window.scrollTo({top:0,behavior:'smooth'});
+  }else{
+    toast(foods.length>1?foods.length+' Lebensmittel gespeichert':'Gespeichert. Mahlzeit jetzt neu berechnen.');
+    if(foods.length===1)window.scrollTo({top:0,behavior:'smooth'});
+  }
+}
 /* ---------- Neue Lebensmittel ---------- */
 var pendingIdx=null,lastOff=[];
 function lookup(i){openSec('newFoodCard');pendingIdx=i;$('#offQ').value=missing[i].name;$('#offG').value=String(missing[i].g);$('#newFoodCard').scrollIntoView({behavior:'smooth'});offSearch()}
