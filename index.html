@@ -220,13 +220,13 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
       <div id="offBox" class="list" style="margin-top:8px"></div>
 
       <h3 style="margin-top:16px">Mit Claude nachfragen</h3>
-      <p class="muted" style="margin:0 0 8px">Für alles, was nicht in der Datenbank ist, z. B. „Rotweinkuchen“. Die Frage wird kopiert und Claude geöffnet. Die Antwort kopierst du hier hinein.</p>
+      <p class="muted" style="margin:0 0 8px">Für alles, was nicht in der Datenbank ist, z. B. „Rotweinkuchen“. Die Frage wird kopiert und Claude geöffnet. Dort tippst du beim Ergebnis auf „Kopieren“, zurück in der App dann auf „Einfügen &amp; übernehmen“.</p>
       <div class="row">
         <input class="grow" id="clQ" placeholder="z. B. Rotweinkuchen" onkeydown="if(event.key==='Enter')claudeAsk()">
         <button class="btn primary" onclick="claudeAsk()">Claude fragen</button>
       </div>
       <textarea id="clImp" rows="3" style="margin-top:8px" placeholder="Antwort von Claude hier einfügen, z. B. Rotweinkuchen | 380 | 5 | 50 | 18 | 100"></textarea>
-      <button class="btn" style="margin-top:6px" onclick="claudeImport()">Antwort übernehmen</button>
+      <div class="row" style="margin-top:6px"><button class="btn primary" onclick="claudePaste()">Einfügen &amp; übernehmen</button><button class="btn" onclick="claudeImport()">Text übernehmen</button></div>
 
       <details class="help" style="margin-top:12px"><summary>Alternative: USDA-Suche (englische Datenbank)</summary>
       <h3 style="margin-top:8px">Grundzutaten (unverpackt)</h3>
@@ -345,6 +345,14 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
         <button class="btn" onclick="exportData()">Backup sichern</button>
         <label class="btn" style="cursor:pointer">Backup laden<input type="file" accept="application/json" hidden onchange="importData(event)"></label>
       </div>
+    </div>
+    <div class="card">
+      <h2>Abgleich mit zweitem Gerät</h2>
+      <p class="muted" style="margin-top:0">Deine selbst hinzugefügten Lebensmittel (auch Änderungen und Löschungen) werden über dein GitHub-Repo mit allen Geräten geteilt, auf denen derselbe Schlüssel eingetragen ist. Mahlzeiten, Gewicht, Rezepte und Ziele bleiben auf dem jeweiligen Gerät.</p>
+      <label class="f">GitHub-Schlüssel<input id="ghTok" type="password" autocomplete="off" placeholder="github_pat_…"></label>
+      <div class="row" style="margin-top:8px"><button class="btn primary" onclick="saveGhTok()">Speichern &amp; abgleichen</button><button class="btn" onclick="syncNow(true)">Jetzt abgleichen</button><button class="btn small" onclick="clearGhTok()">Entfernen</button></div>
+      <p class="muted" id="syncInfo"></p>
+      <details class="help"><summary>So bekommst du den Schlüssel</summary><p class="muted" style="margin:8px 0 0">Auf github.com: Profilbild, Settings, Developer settings, Personal access tokens, Fine-grained tokens, Generate new token. Bei Repository access „Only select repositories“ und makro-tracker wählen. Unter Permissions, Repository permissions, „Contents“ auf „Read and write“ stellen. Den Schlüssel danach auf beiden Geräten hier eintragen. Die Liste liegt in der Datei foods.json im öffentlich lesbaren Repo.</p></details>
     </div>
   </section>
 </main>
@@ -626,7 +634,7 @@ var S=defaultState();
 try{var raw=localStorage.getItem('makro-tracker-v1');if(raw){S=Object.assign(defaultState(),JSON.parse(raw))}}catch(e){}
 S.meta=Object.assign({lastBackup:0,snooze:0},S.meta||{});
 S.db.forEach(function(f){f.n=cleanName(f.n)});
-function save(){try{localStorage.setItem('makro-tracker-v1',JSON.stringify(S))}catch(e){}}
+function save(){try{localStorage.setItem('makro-tracker-v1',JSON.stringify(S))}catch(e){}try{scheduleSync()}catch(e){}}
 
 /* ---------- Helfer ---------- */
 function cleanName(s){return String(s).replace(/[,;+]/g,' ').replace(/\s&\s/g,' / ').replace(/\sund\s/gi,' u. ').replace(/\s+/g,' ').trim()}
@@ -1251,9 +1259,117 @@ function fdcFor(i){
   $('#newFoodCard').scrollIntoView({behavior:'smooth'});fdcSearch();
 }
 
+/* ---------- Geräte-Abgleich (GitHub) ---------- */
+var GH_REPO='erikhub-com/makro-tracker',GH_FILE='foods.json',syncBusy=false,syncTimer=null,lastTry=0;
+function ghTok(){return (S.meta&&S.meta.ghTok)||''}
+function b64enc(s){return btoa(unescape(encodeURIComponent(s)))}
+function b64dec(s){return decodeURIComponent(escape(atob(String(s).replace(/\s/g,''))))}
+function fkey(f){return f.n.toLowerCase()}
+function fjson(f){var c=Object.assign({},f);delete c.u;return JSON.stringify(c)}
+function snapOf(db){var o={};db.forEach(function(f){o[fkey(f)]=fjson(f)});return o}
+function hideSig(h){return JSON.stringify((h||[]).slice().sort())}
+function canon(data){
+  return JSON.stringify({foods:data.foods.slice().sort(function(a,b){return fkey(a)<fkey(b)?-1:1}),gone:Object.keys(data.gone).sort().map(function(k){return [k,data.gone[k]]}),hide:{l:(data.hide.l||[]).slice().sort(),u:data.hide.u||0}});
+}
+function mergeSync(localDb,snap,rem,localHide,snapHide,hideU,now){
+  var gone=Object.assign({},rem.gone),remMap={},locMap={},k;
+  rem.foods.forEach(function(f){remMap[fkey(f)]=f});
+  localDb.forEach(function(f){var key=fkey(f);locMap[key]=f;if(snap[key]!==fjson(f))f.u=now;else if(!f.u)f.u=0});
+  Object.keys(snap).forEach(function(key){if(!locMap[key])gone[key]=now});
+  var keys={};Object.keys(locMap).forEach(function(x){keys[x]=1});Object.keys(remMap).forEach(function(x){keys[x]=1});
+  var fresh=[],kept=[];
+  Object.keys(keys).forEach(function(key){
+    var lf=locMap[key],rf=remMap[key],best=(lf&&rf)?((lf.u||0)>=(rf.u||0)?lf:rf):(lf||rf);
+    if((gone[key]||0)>(best.u||0))return;
+    delete gone[key];
+    (lf&&best===lf?kept:fresh).push(best);
+  });
+  var order=localDb.filter(function(f){return kept.indexOf(f)>-1});
+  var foods=fresh.concat(order);
+  var hide,hu;
+  if(snapHide===undefined){
+    if((rem.hide.u||0)>0){hide=rem.hide.l;hu=rem.hide.u}
+    else{hide=localHide;hu=localHide.length?now:0}
+  }else if(hideSig(localHide)!==snapHide){hide=localHide;hu=now}
+  else if((rem.hide.u||0)>(hideU||0)){hide=rem.hide.l;hu=rem.hide.u}
+  else{hide=localHide;hu=hideU||0}
+  return {foods:foods,gone:gone,hide:hide,hu:hu};
+}
+function setSyncInfo(t){var e=$('#syncInfo');if(e)e.textContent=t}
+function renderSync(){
+  var ls=S.meta.lastSync;
+  setSyncInfo(ghTok()?('Aktiv. '+(ls?'Zuletzt abgeglichen: '+new Date(ls).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+'.':'Noch nicht abgeglichen.')):'Nicht eingerichtet.');
+  var i=$('#ghTok');if(i){i.value='';i.placeholder=ghTok()?'••••••• gespeichert':'github_pat_…'}
+}
+function ghHeaders(){return {'Authorization':'Bearer '+ghTok(),'Accept':'application/vnd.github+json'}}
+function ghGet(){
+  return fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE+'?t='+Date.now(),{cache:'no-store',headers:ghHeaders()}).then(function(r){
+    if(r.status===404)return {sha:null,data:{foods:[],gone:{},hide:{l:[],u:0}}};
+    if(r.status===401||r.status===403)throw new Error('auth');
+    if(!r.ok)throw new Error('http');
+    return r.json().then(function(j){
+      var d={};try{d=JSON.parse(b64dec(j.content))}catch(e){}
+      return {sha:j.sha,data:{foods:d.foods||[],gone:d.gone||{},hide:d.hide||{l:[],u:0}}};
+    });
+  });
+}
+function ghPut(data,sha){
+  var body={message:'Lebensmittel-Abgleich',content:b64enc(JSON.stringify(data)),branch:'main'};if(sha)body.sha=sha;
+  var h=ghHeaders();h['Content-Type']='application/json';
+  return fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE,{method:'PUT',headers:h,body:JSON.stringify(body)}).then(function(r){
+    if(r.status===409||r.status===422)throw new Error('conflict');
+    if(r.status===401||r.status===403||r.status===404)throw new Error('auth');
+    if(!r.ok)throw new Error('http');
+  });
+}
+function needsSync(){
+  var s=S.meta.snap;if(!s)return true;
+  var now=snapOf(S.db),a=Object.keys(now),b=Object.keys(s);
+  if(a.length!==b.length||hideSig(S.hide)!==S.meta.snapHide)return true;
+  for(var i=0;i<a.length;i++){if(s[a[i]]!==now[a[i]])return true}
+  return false;
+}
+function scheduleSync(){
+  if(!ghTok()||syncBusy||!needsSync())return;
+  clearTimeout(syncTimer);syncTimer=setTimeout(function(){syncNow(false)},4000);
+}
+function syncNow(manual){
+  if(!ghTok()){if(manual)toast('Erst den Schlüssel eintragen');return Promise.resolve()}
+  if(syncBusy)return Promise.resolve();
+  syncBusy=true;lastTry=Date.now();if(manual)setSyncInfo('Gleiche ab …');
+  var tries=0;
+  function run(){
+    return ghGet().then(function(r){
+      var m=mergeSync(S.db,S.meta.snap||{},r.data,S.hide||[],S.meta.snapHide,S.meta.hideU||0,Date.now());
+      S.db=m.foods;S.hide=m.hide;S.meta.hideU=m.hu;
+      var out={foods:m.foods,gone:m.gone,hide:{l:m.hide,u:m.hu}};
+      var same=canon(out)===canon(r.data);
+      return (same?Promise.resolve():ghPut(out,r.sha)).then(function(){
+        S.meta.snap=snapOf(S.db);S.meta.snapHide=hideSig(S.hide);S.meta.lastSync=Date.now();
+      });
+    }).catch(function(e){if(e.message==='conflict'&&tries++<2)return run();throw e});
+  }
+  return run().then(function(){
+    syncBusy=false;save();renderSync();try{renderDb()}catch(e){}
+    if(manual)toast('Abgeglichen');
+  }).catch(function(e){
+    syncBusy=false;save();
+    setSyncInfo(e.message==='auth'?'Schlüssel ungültig oder ohne Schreibrecht für das Repo makro-tracker.':'Abgleich nicht möglich, vermutlich offline. Später nochmal.');
+    if(manual)toast('Abgleich fehlgeschlagen');
+  });
+}
+function saveGhTok(){
+  var v=($('#ghTok').value||'').trim();if(!v){toast('Bitte Schlüssel einfügen');return}
+  S.meta.ghTok=v;save();renderSync();syncNow(true);
+}
+function clearGhTok(){delete S.meta.ghTok;delete S.meta.snap;delete S.meta.snapHide;save();renderSync();toast('Abgleich deaktiviert')}
+try{renderSync();if(ghTok())setTimeout(function(){syncNow(false)},1500);
+  document.addEventListener('visibilitychange',function(){if(!document.hidden&&ghTok()&&Date.now()-lastTry>60000)syncNow(false)});
+}catch(e){}
+
 /* ---------- Claude-Übergabe ---------- */
 function claudePrompt(name){
-  return 'Gib mir die durchschnittlichen Nährwerte pro 100 g für: '+name+'. Antworte nur mit einer Zeile ohne weiteren Text, genau in diesem Format: Name | kcal | Eiweiß g | Kohlenhydrate g | Fett g | typisches Gewicht eines Stücks oder einer Portion in g. Beispiel: Rotweinkuchen | 380 | 5 | 50 | 18 | 100';
+  return 'Gib mir die durchschnittlichen Nährwerte pro 100 g für: '+name+'. Antworte nur mit einer Zeile ohne weiteren Text, als Codeblock mit genau einer Zeile in diesem Format: Name | kcal | Eiweiß g | Kohlenhydrate g | Fett g | typisches Gewicht eines Stücks oder einer Portion in g. Beispiel: Rotweinkuchen | 380 | 5 | 50 | 18 | 100';
 }
 function claudeAsk(){
   var q=($('#clQ').value||'').trim();if(!q){toast('Bitte einen Namen eingeben');return}
@@ -1261,6 +1377,10 @@ function claudeAsk(){
   try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(p).catch(function(){})}catch(e){}
   window.open('https://claude.ai/new?q='+encodeURIComponent(p),'_blank');
   toast('Frage kopiert, Claude öffnet sich');
+}
+function claudePaste(){
+  if(!navigator.clipboard||!navigator.clipboard.readText){toast('Einfügen nicht möglich, bitte ins Feld einfügen');return}
+  navigator.clipboard.readText().then(function(t){$('#clImp').value=t;claudeImport()}).catch(function(){toast('Zwischenablage nicht erlaubt, bitte ins Feld einfügen')});
 }
 function claudeFor(i){
   openSec('newFoodCard');pendingIdx=i;
@@ -1612,7 +1732,7 @@ function saveGoals(){
 }
 function resetGoals(){var m=MODES[S.mode];S.targets[S.mode]={k:m.k,p:m.p,c:m.c,f:m.f};save();renderGoals()}
 function exportData(){
-  var json=JSON.stringify(S),name='makro-tracker-backup-'+dayKey(new Date())+'.json';
+  var cp=Object.assign({},S,{meta:Object.assign({},S.meta)});delete cp.meta.ghTok;var json=JSON.stringify(cp),name='makro-tracker-backup-'+dayKey(new Date())+'.json';
   var done=function(){S.meta.lastBackup=Date.now();save();renderBanner();updateBkInfo();toast('Backup gesichert')};
   try{
     var file=new File([json],name,{type:'application/json'});
@@ -1625,7 +1745,7 @@ function exportData(){
 }
 function importData(e){
   var f=e.target.files[0];if(!f)return;
-  f.text().then(function(t){try{S=Object.assign(defaultState(),JSON.parse(t));S.meta=Object.assign({lastBackup:0,snooze:0},S.meta||{});S.meta.lastBackup=Date.now();S.db.forEach(function(f){f.n=cleanName(f.n)});save();show('today');toast('Backup geladen')}catch(x){toast('Datei ungültig')}});
+  f.text().then(function(t){try{var tk0=S.meta.ghTok;S=Object.assign(defaultState(),JSON.parse(t));S.meta=Object.assign({lastBackup:0,snooze:0},S.meta||{});if(tk0)S.meta.ghTok=tk0;S.meta.lastBackup=Date.now();S.db.forEach(function(f){f.n=cleanName(f.n)});save();show('today');toast('Backup geladen')}catch(x){toast('Datei ungültig')}});
 }
 
 try{if(navigator.storage&&navigator.storage.persist){navigator.storage.persist().then(function(p){persisted=p;updateBkInfo()})}}catch(e){}
