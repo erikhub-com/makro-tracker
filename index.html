@@ -151,9 +151,11 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
       <div id="sugBox" class="chips" style="margin-top:8px"></div>
       <div class="row" style="margin-top:10px">
         <button class="btn primary grow" onclick="calcMeal()">Berechnen</button>
+        <button class="btn" data-l="🎤 Sprechen" onclick="voiceInput('mealText',this)">🎤 Sprechen</button>
         <button class="btn" onclick="clearDraft()">Leeren</button>
       </div>
-      <p class="muted" style="margin:10px 0 0">Mehrere Zutaten mit Komma trennen. Einheiten: g, kg, ml, l, EL, TL. Ohne Einheit zählen Eier als Stück, alles andere als Gramm. Gespeicherte Routinen lädst du über den Namen, z. B. „Cappuccino“ oder „2x Cappuccino“.</p>
+      <p id="voiceStat" class="muted" style="margin:8px 0 0" aria-live="polite"></p>
+      <p class="muted" style="margin:10px 0 0">Mehrere Zutaten mit Komma trennen. Einheiten: g, kg, ml, l, EL, TL. Per 🎤 kannst du die Mahlzeit einsprechen, z. B. „hundert Gramm Magerquark und zwei Eier“. Ohne Einheit zählen Eier als Stück, alles andere als Gramm. Gespeicherte Routinen lädst du über den Namen, z. B. „Cappuccino“ oder „2x Cappuccino“.</p>
     </div>
 
     <div id="draftBox"></div>
@@ -168,7 +170,7 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
           <label class="f" style="grid-column:1/-1">Zutaten<textarea id="rbText" rows="3" placeholder="z. B. 100 ml Milch, 1 EL Zucker, 1 Espresso"></textarea></label>
         </div>
         <p class="muted" style="margin:8px 0 0">Zutaten mit Komma trennen. Fehlende Lebensmittel kannst du danach online suchen oder manuell anlegen. Die Routine speicherst du dann unter der Berechnung.</p>
-        <button class="btn primary" style="margin-top:10px;width:100%" onclick="buildRoutine()">Zutaten berechnen</button>
+        <div class="row" style="margin-top:10px"><button class="btn primary grow" onclick="buildRoutine()">Zutaten berechnen</button><button class="btn" data-l="🎤 Sprechen" onclick="voiceInput('rbText',this)">🎤 Sprechen</button></div>
       </details>
       <details style="margin-top:12px">
         <summary class="muted" style="cursor:pointer">Routine mit festen Werten (ohne Zutaten)</summary>
@@ -680,6 +682,58 @@ function quickAdd(i){
   var q=quickList[i];if(!q)return;
   draft.push({food:Object.assign({},q.f),g:lastG(q.f)});
   renderDraft();$('#draftBox').scrollIntoView({behavior:'smooth',block:'nearest'});toast(q.f.n+' hinzugefügt');
+}
+
+/* ---------- Spracheingabe ---------- */
+var NW_U={ein:1,eins:1,eine:1,einen:1,einem:1,einer:1,zwei:2,zwo:2,drei:3,vier:4,'fünf':5,sechs:6,sieben:7,acht:8,neun:9,zehn:10,elf:11,'zwölf':12,dreizehn:13,vierzehn:14,'fünfzehn':15,sechzehn:16,siebzehn:17,achtzehn:18,neunzehn:19};
+var NW_T={zwanzig:20,'dreißig':30,dreissig:30,vierzig:40,'fünfzig':50,sechzig:60,siebzig:70,achtzig:80,neunzig:90};
+function nwSub(s){
+  if(!s)return 0;
+  if(NW_U[s]!==undefined)return NW_U[s];
+  if(NW_T[s]!==undefined)return NW_T[s];
+  var m=s.match(/^(.+?)und(.+)$/);
+  if(m&&NW_U[m[1]]!==undefined&&NW_U[m[1]]<10&&NW_T[m[2]]!==undefined)return NW_U[m[1]]+NW_T[m[2]];
+  return null;
+}
+function numWord(t){
+  var s=String(t).toLowerCase().replace(/[.,;!?]+$/,'');if(!s)return null;
+  var i=s.indexOf('hundert');
+  if(i>-1){
+    var pre=s.slice(0,i),h=pre?(NW_U[pre]!==undefined&&NW_U[pre]<10?NW_U[pre]:null):1;
+    if(h===null)return null;
+    var rest=s.slice(i+7),r=rest?nwSub(rest):0;
+    return r===null?null:h*100+r;
+  }
+  return nwSub(s);
+}
+function normSpeech(s){
+  var out=String(s).trim().split(/\s+/).map(function(w){var n=numWord(w);return n===null?w:String(n)}).join(' ');
+  out=out.replace(/(\d+)\s+komma\s+(\d+)/gi,'$1,$2')
+    .replace(/\b(?:kilogramm|kilo)\b/gi,'kg').replace(/\b(?:gramm|grams?)\b/gi,'g')
+    .replace(/\bmilliliter\b/gi,'ml').replace(/\bliter\b/gi,'l')
+    .replace(/\b(?:esslöffel|essloeffel)\b/gi,'EL').replace(/\b(?:teelöffel|teeloeffel)\b/gi,'TL')
+    .replace(/\s*\bplus\b\s*/gi,', ').replace(/\s+prozent\b/gi,' %')
+    .replace(/[.!?]+$/,'');
+  return out.trim();
+}
+var rec=null;
+function voiceInput(id,btn){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){toast('Spracheingabe wird hier nicht unterstützt. Nutze das Mikrofon deiner Tastatur.');return}
+  if(rec){try{rec.stop()}catch(e){}return}
+  var ta=$('#'+id),st=$('#voiceStat'),r=new SR(),base=ta.value.trim();
+  r.lang='de-DE';r.interimResults=true;r.continuous=false;r.maxAlternatives=1;
+  r.onstart=function(){btn.textContent='⏹ Stopp';if(st)st.textContent='Höre zu … sprich jetzt.'};
+  r.onresult=function(e){
+    var t='';for(var i=0;i<e.results.length;i++)t+=e.results[i][0].transcript+' ';
+    t=normSpeech(t);
+    ta.value=(base?base+(/[,;+]$/.test(base)?' ':', '):'')+t;
+    if(id==='mealText'){var sb=$('#sugBox');if(sb)sb.innerHTML=''}
+  };
+  r.onerror=function(e){toast(e.error==='not-allowed'||e.error==='service-not-allowed'?'Mikrofon-Zugriff nicht erlaubt':e.error==='no-speech'?'Nichts gehört':e.error==='network'?'Spracherkennung braucht Internet':'Spracherkennung: '+e.error)};
+  r.onend=function(){rec=null;btn.textContent=btn.dataset.l||'🎤 Sprechen';if(st)st.textContent=ta.value.trim()?'Prüfe den Text und tippe dann auf Berechnen.':''};
+  rec=r;
+  try{r.start()}catch(x){rec=null;toast('Spracheingabe konnte nicht gestartet werden')}
 }
 
 /* ---------- Neue Lebensmittel ---------- */
