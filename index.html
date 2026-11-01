@@ -218,7 +218,9 @@ nav button[aria-current=page]{background:var(--soft);color:var(--accent)}
     <div class="card">
       <h2>Lebensmittel (pro 100 g)</h2>
       <input id="dbQ" placeholder="Filtern" oninput="renderDb()">
+      <div id="dbEdit"></div>
       <div id="dbBox" class="list" style="margin-top:10px"></div>
+      <div id="dbReset"></div>
     </div>
     <div class="card"><h2>Routinen</h2><div id="routineList" class="list"></div></div>
   </section>
@@ -320,7 +322,7 @@ var BASE=[
 ];
 function defaultState(){
   var t={};for(var m in MODES){t[m]={k:MODES[m].k,p:MODES[m].p,c:MODES[m].c,f:MODES[m].f}}
-  return {mode:'recomp',targets:t,db:[],routines:[],recent:[],favs:[],body:{},meta:{lastBackup:0,snooze:0},log:{}};
+  return {mode:'recomp',targets:t,db:[],routines:[],recent:[],favs:[],body:{},hide:[],meta:{lastBackup:0,snooze:0},log:{}};
 }
 var S=defaultState();
 try{var raw=localStorage.getItem('makro-tracker-v1');if(raw){S=Object.assign(defaultState(),JSON.parse(raw))}}catch(e){}
@@ -338,7 +340,7 @@ function f0(n){return Math.round(n).toLocaleString('de-DE')}
 function f1(n){return (Math.round(n*10)/10).toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:1})}
 function dayKey(d){return d.toLocaleDateString('sv-SE')}
 var viewDay=new Date();
-function allFoods(){return S.db.concat(BASE)}
+function allFoods(){var h=S.hide||[];return S.db.concat(BASE.filter(function(b){return h.indexOf(b.n.toLowerCase())<0}))}
 function target(){return S.targets[S.mode]}
 function calc(food,g){return {k:food.k*g/100,p:food.p*g/100,c:food.c*g/100,f:food.f*g/100}}
 function sum(list){var t={k:0,p:0,c:0,f:0};list.forEach(function(x){t.k+=x.k;t.p+=x.p;t.c+=x.c;t.f+=x.f});return t}
@@ -737,15 +739,52 @@ function renderDb(){
   dbShown=allFoods().filter(function(f){return !q||f.n.toLowerCase().indexOf(q)>-1});
   $('#dbBox').innerHTML=dbShown.map(function(f,i){
     var di=S.db.indexOf(f),fav=S.favs.indexOf(f.n)>-1;
-    return '<div class="item"><div class="t"><strong>'+esc(f.n)+'</strong><div class="s">'+f0(f.k)+' kcal · P '+f1(f.p)+' · C '+f1(f.c)+' · F '+f1(f.f)+(di>-1?' · eigene':'')+'</div></div><div class="row"><button class="btn small" onclick="toggleFav('+i+')" aria-label="Favorit" aria-pressed="'+fav+'">'+(fav?'★':'☆')+'</button>'+
-      (di>-1?'<button class="btn small danger" onclick="delFood('+di+')">Löschen</button>':'')+'</div></div>'}).join('')||'<p class="muted">Nichts gefunden.</p>';
+    return '<div class="item"><div class="t"><strong>'+esc(f.n)+'</strong><div class="s">'+f0(f.k)+' kcal · P '+f1(f.p)+' · C '+f1(f.c)+' · F '+f1(f.f)+(di>-1?(f.o?' · angepasst':' · eigene'):'')+'</div></div><div class="row"><button class="btn small" onclick="toggleFav('+i+')" aria-label="Favorit" aria-pressed="'+fav+'">'+(fav?'★':'☆')+'</button>'+
+      '<button class="btn small" onclick="editFood('+i+')">Bearbeiten</button><button class="btn small danger" onclick="delFood('+i+')">Löschen</button></div></div>'}).join('')||'<p class="muted">Nichts gefunden.</p>';
+  var nr=(S.hide||[]).length+S.db.filter(function(x){return x.o}).length;
+  $('#dbReset').innerHTML=nr?'<button class="btn" style="margin-top:12px;width:100%" onclick="resetBase()">Standard-Lebensmittel wiederherstellen</button>':'';
 }
 function toggleFav(i){
   var n=dbShown[i].n,k=S.favs.indexOf(n);
   if(k>-1)S.favs.splice(k,1);else S.favs.push(n);
   save();renderDb();
 }
-function delFood(i){S.db.splice(i,1);save();renderDb();toast('Gelöscht')}
+function delFood(i){
+  var f=dbShown[i];if(!f)return;
+  var di=S.db.indexOf(f);
+  if(di>-1){S.db.splice(di,1);if(f.o){var h=S.hide||(S.hide=[]),ln=(f.o0||'').toLowerCase();if(ln&&h.indexOf(ln)<0)h.push(ln)}}
+  else{(S.hide||(S.hide=[])).push(f.n.toLowerCase())}
+  var k=S.favs.indexOf(f.n);if(k>-1)S.favs.splice(k,1);
+  save();$('#dbEdit').innerHTML='';renderDb();toast('Gelöscht');
+}
+var editRef=null;
+function editFood(i){
+  var f=dbShown[i];if(!f)return;editRef=f;
+  $('#dbEdit').innerHTML='<div class="card" style="background:var(--soft);margin:10px 0"><h3>Bearbeiten (pro 100 g)</h3><div class="grid4"><label class="f" style="grid-column:1/-1">Name<input id="eN" value="'+esc(f.n)+'"></label><label class="f">kcal<input id="eK" inputmode="decimal" value="'+esc(String(f.k).replace('.',','))+'"></label><label class="f">Protein (g)<input id="eP" inputmode="decimal" value="'+esc(String(f.p).replace('.',','))+'"></label><label class="f">Kohlenhydrate (g)<input id="eC" inputmode="decimal" value="'+esc(String(f.c).replace('.',','))+'"></label><label class="f">Fett (g)<input id="eF" inputmode="decimal" value="'+esc(String(f.f).replace('.',','))+'"></label></div><div class="row" style="margin-top:10px"><button class="btn primary grow" onclick="saveFoodEdit()">Speichern</button><button class="btn" onclick="cancelFoodEdit()">Abbrechen</button></div></div>';
+  $('#dbEdit').scrollIntoView({block:'center'});
+}
+function cancelFoodEdit(){editRef=null;$('#dbEdit').innerHTML=''}
+function saveFoodEdit(){
+  var f=editRef;if(!f)return;
+  var n=cleanName($('#eN').value);if(!n){toast('Name fehlt');return}
+  var k=num($('#eK').value),p=num($('#eP').value),c=num($('#eC').value),fa=num($('#eF').value);
+  if(!k&&(p||c||fa))k=Math.round(p*4+c*4+fa*9);
+  if(k<0||p<0||c<0||fa<0||k>1000||p>100||c>100||fa>100){toast('Werte unplausibel (pro 100 g)');return}
+  var clash=allFoods().some(function(x){return x!==f&&x.n.toLowerCase()===n.toLowerCase()});
+  if(clash){toast('Name existiert schon');return}
+  var oldN=f.n,di=S.db.indexOf(f);
+  if(di>-1){f.n=n;f.k=k;f.p=p;f.c=c;f.f=fa}
+  else{
+    var nf=Object.assign({},f,{n:n,k:k,p:p,c:c,f:fa,o:1,o0:f.n});
+    S.db.unshift(nf);(S.hide||(S.hide=[])).push(f.n.toLowerCase());
+  }
+  if(n!==oldN){var fi=S.favs.indexOf(oldN);if(fi>-1)S.favs[fi]=n}
+  editRef=null;save();$('#dbEdit').innerHTML='';renderDb();toast('Gespeichert');
+}
+function resetBase(){
+  if(!confirm('Alle Änderungen und Löschungen an Standard-Lebensmitteln zurücksetzen? Eigene Lebensmittel bleiben erhalten.'))return;
+  S.hide=[];S.db=S.db.filter(function(x){return !x.o});save();renderDb();toast('Standardwerte wiederhergestellt');
+}
 
 /* ---------- Verlauf ---------- */
 var rangeDays=28,weekOff=0,WD=['So','Mo','Di','Mi','Do','Fr','Sa'];
