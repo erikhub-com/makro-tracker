@@ -397,7 +397,7 @@ nav button[aria-current=page]{background:var(--accent);color:var(--accent-fg);bo
     </div>
     <div class="card">
       <h2>Abgleich mit zweitem Gerät</h2>
-      <p class="muted" style="margin-top:0">Deine selbst hinzugefügten Lebensmittel (auch Änderungen und Löschungen) werden über dein GitHub-Repo mit allen Geräten geteilt, auf denen derselbe Schlüssel eingetragen ist. Mahlzeiten, Gewicht, Rezepte und Ziele bleiben auf dem jeweiligen Gerät.</p>
+      <p class="muted" style="margin-top:0">Deine selbst hinzugefügten Lebensmittel und Rezepte (auch Änderungen und Löschungen) werden über dein GitHub-Repo mit allen Geräten geteilt, auf denen derselbe Schlüssel eingetragen ist. Mahlzeiten, Gewicht und Ziele bleiben auf dem jeweiligen Gerät.</p>
       <label class="f">GitHub-Schlüssel<input id="ghTok" type="password" autocomplete="off" placeholder="github_pat_…"></label>
       <div class="row" style="margin-top:8px"><button class="btn primary" onclick="saveGhTok()">Speichern &amp; abgleichen</button><button class="btn" onclick="syncNow(true)">Jetzt abgleichen</button><button class="btn small" onclick="clearGhTok()">Entfernen</button></div>
       <p class="muted" id="syncInfo"></p>
@@ -1400,15 +1400,21 @@ function b64enc(s){return btoa(unescape(encodeURIComponent(s)))}
 function b64dec(s){return decodeURIComponent(escape(atob(String(s).replace(/\s/g,''))))}
 function fkey(f){return f.n.toLowerCase()}
 function fjson(f){var c=Object.assign({},f);delete c.u;return JSON.stringify(c)}
-function snapOf(db){var o={};db.forEach(function(f){o[fkey(f)]=fjson(f)});return o}
+function snapOfBy(list,jf){var o={};(list||[]).forEach(function(f){o[f.name!==undefined&&f.n===undefined?f.name.toLowerCase():fkey(f)]=jf(f)});return o}
+function snapOf(db){return snapOfBy(db,fjson)}
+function rkey(r){return r.name.toLowerCase()}
+function rjson(r){var c=Object.assign({},r);delete c.u;return JSON.stringify(c)}
+function snapOfR(l){var o={};(l||[]).forEach(function(r){o[rkey(r)]=rjson(r)});return o}
 function hideSig(h){return JSON.stringify((h||[]).slice().sort())}
 function canon(data){
-  return JSON.stringify({foods:data.foods.slice().sort(function(a,b){return fkey(a)<fkey(b)?-1:1}),gone:Object.keys(data.gone).sort().map(function(k){return [k,data.gone[k]]}),hide:{l:(data.hide.l||[]).slice().sort(),u:data.hide.u||0}});
+  function so(l,kf){return (l||[]).slice().sort(function(a,b){return kf(a)<kf(b)?-1:1})}
+  function go(g){return Object.keys(g||{}).sort().map(function(k){return [k,g[k]]})}
+  return JSON.stringify({foods:so(data.foods,fkey),gone:go(data.gone),recipes:so(data.recipes,rkey),rgone:go(data.rgone),hide:{l:(data.hide.l||[]).slice().sort(),u:data.hide.u||0}});
 }
-function mergeSync(localDb,snap,rem,localHide,snapHide,hideU,now){
-  var gone=Object.assign({},rem.gone),remMap={},locMap={},k;
-  rem.foods.forEach(function(f){remMap[fkey(f)]=f});
-  localDb.forEach(function(f){var key=fkey(f);locMap[key]=f;if(snap[key]!==fjson(f))f.u=now;else if(!f.u)f.u=0});
+function mergeList(localList,snap,remList,remGone,kf,jf,now){
+  var gone=Object.assign({},remGone),remMap={},locMap={};
+  remList.forEach(function(f){remMap[kf(f)]=f});
+  localList.forEach(function(f){var key=kf(f);locMap[key]=f;if(snap[key]!==jf(f))f.u=now;else if(!f.u)f.u=0});
   Object.keys(snap).forEach(function(key){if(!locMap[key])gone[key]=now});
   var keys={};Object.keys(locMap).forEach(function(x){keys[x]=1});Object.keys(remMap).forEach(function(x){keys[x]=1});
   var fresh=[],kept=[];
@@ -1418,8 +1424,11 @@ function mergeSync(localDb,snap,rem,localHide,snapHide,hideU,now){
     delete gone[key];
     (lf&&best===lf?kept:fresh).push(best);
   });
-  var order=localDb.filter(function(f){return kept.indexOf(f)>-1});
-  var foods=fresh.concat(order);
+  var order=localList.filter(function(f){return kept.indexOf(f)>-1});
+  return {list:fresh.concat(order),gone:gone};
+}
+function mergeSync(localDb,snap,rem,localHide,snapHide,hideU,now){
+  var mf=mergeList(localDb,snap,rem.foods,rem.gone,fkey,fjson,now);
   var hide,hu;
   if(snapHide===undefined){
     if((rem.hide.u||0)>0){hide=rem.hide.l;hu=rem.hide.u}
@@ -1427,7 +1436,7 @@ function mergeSync(localDb,snap,rem,localHide,snapHide,hideU,now){
   }else if(hideSig(localHide)!==snapHide){hide=localHide;hu=now}
   else if((rem.hide.u||0)>(hideU||0)){hide=rem.hide.l;hu=rem.hide.u}
   else{hide=localHide;hu=hideU||0}
-  return {foods:foods,gone:gone,hide:hide,hu:hu};
+  return {foods:mf.list,gone:mf.gone,hide:hide,hu:hu};
 }
 function setSyncInfo(t){var e=$('#syncInfo');if(e)e.textContent=t}
 function renderSync(){
@@ -1438,17 +1447,17 @@ function renderSync(){
 function ghHeaders(){return {'Authorization':'Bearer '+ghTok(),'Accept':'application/vnd.github+json'}}
 function ghGet(){
   return fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE+'?t='+Date.now(),{cache:'no-store',headers:ghHeaders()}).then(function(r){
-    if(r.status===404)return {sha:null,data:{foods:[],gone:{},hide:{l:[],u:0}}};
+    if(r.status===404)return {sha:null,data:{foods:[],gone:{},recipes:[],rgone:{},hide:{l:[],u:0}}};
     if(r.status===401||r.status===403)throw new Error('auth');
     if(!r.ok)throw new Error('http');
     return r.json().then(function(j){
       var d={};try{d=JSON.parse(b64dec(j.content))}catch(e){}
-      return {sha:j.sha,data:{foods:d.foods||[],gone:d.gone||{},hide:d.hide||{l:[],u:0}}};
+      return {sha:j.sha,data:{foods:d.foods||[],gone:d.gone||{},recipes:d.recipes||[],rgone:d.rgone||{},hide:d.hide||{l:[],u:0}}};
     });
   });
 }
 function ghPut(data,sha){
-  var body={message:'Lebensmittel-Abgleich',content:b64enc(JSON.stringify(data)),branch:'main'};if(sha)body.sha=sha;
+  var body={message:'Abgleich Lebensmittel und Rezepte',content:b64enc(JSON.stringify(data)),branch:'main'};if(sha)body.sha=sha;
   var h=ghHeaders();h['Content-Type']='application/json';
   return fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE,{method:'PUT',headers:h,body:JSON.stringify(body)}).then(function(r){
     if(r.status===409||r.status===422)throw new Error('conflict');
@@ -1457,11 +1466,9 @@ function ghPut(data,sha){
   });
 }
 function needsSync(){
-  var s=S.meta.snap;if(!s)return true;
-  var now=snapOf(S.db),a=Object.keys(now),b=Object.keys(s);
-  if(a.length!==b.length||hideSig(S.hide)!==S.meta.snapHide)return true;
-  for(var i=0;i<a.length;i++){if(s[a[i]]!==now[a[i]])return true}
-  return false;
+  var s=S.meta.snap,rs=S.meta.rsnap;if(!s||!rs)return true;
+  function diff(a,b){var x=Object.keys(a),y=Object.keys(b);if(x.length!==y.length)return true;for(var i=0;i<x.length;i++){if(a[x[i]]!==b[x[i]])return true}return false}
+  return diff(snapOf(S.db),s)||diff(snapOfR(S.recipes),rs)||hideSig(S.hide)!==S.meta.snapHide;
 }
 function scheduleSync(){
   if(!ghTok()||syncBusy||!needsSync())return;
@@ -1476,15 +1483,17 @@ function syncNow(manual){
     return ghGet().then(function(r){
       var m=mergeSync(S.db,S.meta.snap||{},r.data,S.hide||[],S.meta.snapHide,S.meta.hideU||0,Date.now());
       S.db=m.foods;S.hide=m.hide;S.meta.hideU=m.hu;
-      var out={foods:m.foods,gone:m.gone,hide:{l:m.hide,u:m.hu}};
+      var mr=mergeList(S.recipes||[],S.meta.rsnap||{},r.data.recipes,r.data.rgone,rkey,rjson,Date.now());
+      S.recipes=mr.list;
+      var out={foods:m.foods,gone:m.gone,recipes:mr.list,rgone:mr.gone,hide:{l:m.hide,u:m.hu}};
       var same=canon(out)===canon(r.data);
       return (same?Promise.resolve():ghPut(out,r.sha)).then(function(){
-        S.meta.snap=snapOf(S.db);S.meta.snapHide=hideSig(S.hide);S.meta.lastSync=Date.now();
+        S.meta.snap=snapOf(S.db);S.meta.rsnap=snapOfR(S.recipes);S.meta.snapHide=hideSig(S.hide);S.meta.lastSync=Date.now();
       });
     }).catch(function(e){if(e.message==='conflict'&&tries++<2)return run();throw e});
   }
   return run().then(function(){
-    syncBusy=false;save();renderSync();try{renderDb()}catch(e){}
+    syncBusy=false;save();renderSync();try{renderDb()}catch(e){}try{renderRecipes()}catch(e){}
     if(manual)toast('Abgeglichen');
   }).catch(function(e){
     syncBusy=false;save();
@@ -1496,7 +1505,7 @@ function saveGhTok(){
   var v=($('#ghTok').value||'').trim();if(!v){toast('Bitte Schlüssel einfügen');return}
   S.meta.ghTok=v;save();renderSync();syncNow(true);
 }
-function clearGhTok(){delete S.meta.ghTok;delete S.meta.snap;delete S.meta.snapHide;save();renderSync();toast('Abgleich deaktiviert')}
+function clearGhTok(){delete S.meta.ghTok;delete S.meta.snap;delete S.meta.rsnap;delete S.meta.snapHide;save();renderSync();toast('Abgleich deaktiviert')}
 try{renderSync();if(ghTok())setTimeout(function(){syncNow(false)},1500);
   document.addEventListener('visibilitychange',function(){if(!document.hidden&&ghTok()&&Date.now()-lastTry>60000)syncNow(false)});
 }catch(e){}
