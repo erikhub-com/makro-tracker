@@ -272,27 +272,22 @@ nav button[aria-current=page]{background:var(--accent);color:var(--accent-fg);bo
 
       <h3 style="margin-top:16px">Mit Claude nachfragen</h3>
       <p class="muted" style="margin:0 0 8px">Für alles, was nicht in der Datenbank ist, z. B. „Rotweinkuchen“. Die Frage wird kopiert und Claude geöffnet. Dort tippst du beim Ergebnis auf „Kopieren“, zurück in der App dann auf „Einfügen &amp; übernehmen“.</p>
+      <div id="clMissing" style="margin-bottom:10px"></div>
       <div class="row">
-        <input class="grow" id="clQ" placeholder="z. B. Rotweinkuchen" onkeydown="if(event.key==='Enter')claudeAsk()">
+        <input class="grow" id="clQ" placeholder="oder Namen selbst eintippen, z. B. Rotweinkuchen" onkeydown="if(event.key==='Enter')claudeAsk()">
         <button class="btn primary" onclick="claudeAsk()">Claude fragen</button>
       </div>
       <textarea id="clImp" rows="3" style="margin-top:8px" placeholder="Antwort von Claude hier einfügen, z. B. Rotweinkuchen | 380 | 5 | 50 | 18 | 100"></textarea>
       <div class="row" style="margin-top:6px"><button class="btn primary" onclick="claudePaste()">Einfügen &amp; übernehmen</button><button class="btn" onclick="claudeImport()">Text übernehmen</button></div>
 
-      <details class="help" style="margin-top:12px"><summary>Alternative: USDA-Suche (englische Datenbank)</summary>
-      <h3 style="margin-top:8px">Grundzutaten (unverpackt)</h3>
+      <h3 style="margin-top:16px">Nährwerttabelle fotografieren</h3>
+      <p class="muted" style="margin:0 0 8px">Fotografiere die Tabelle „pro 100 g“ auf der Packung, möglichst gerade und gut beleuchtet. Die Werte landen im Formular darunter, du prüfst sie kurz, trägst den Namen ein und speicherst.</p>
       <div class="row">
-        <input class="grow" id="fdcQ" placeholder="z. B. Pak Choi, Rinderhüfte, Dinkel" enterkeyhint="search" onkeydown="if(event.key==='Enter')fdcSearch()">
-        <button class="btn primary" onclick="fdcSearch()">Suchen</button>
+        <label class="btn primary" style="cursor:pointer">📷 Foto aufnehmen<input id="tbFile" type="file" accept="image/*" capture="environment" hidden onchange="tableOcr(event)"></label>
+        <label class="btn" style="cursor:pointer">Aus Galerie<input type="file" accept="image/*" hidden onchange="tableOcr(event)"></label>
       </div>
-      <p class="muted" style="margin:8px 0 0">Für Gemüse, Obst, Fleisch, Fisch, Getreide und Co. aus der USDA-Datenbank. Du kannst deutsch oder englisch suchen. Die Menge oben gilt auch hier.</p>
-      <div id="fdcBox" class="list" style="margin-top:8px"></div>
-      <details class="help"><summary>Eigener USDA-Schlüssel (optional)</summary>
-        <p class="muted" style="margin:8px 0">Ohne Schlüssel gibt es nur wenige Suchen pro Stunde. Ein kostenloser Schlüssel von api.data.gov/signup erlaubt deutlich mehr.</p>
-        <div class="row"><input class="grow" id="fdcKey" placeholder="Schlüssel einfügen"><button class="btn" onclick="saveFdcKey()">Speichern</button></div>
-      </details>
-
-      </details>
+      <p class="muted" id="tbInfo"></p>
+      <details class="help"><summary>Erkannter Text</summary><pre id="tbRaw" class="muted" style="white-space:pre-wrap;margin:8px 0 0"></pre></details>
 
       <h3 style="margin-top:16px">Manuell eingeben (pro 100 g)</h3>
       <div class="grid4">
@@ -938,6 +933,7 @@ function setG(i,v){draft[i].g=num(v);renderDraft()}
 function rmDraft(i){draft.splice(i,1);renderDraft()}
 function renderDraft(){
   var box=$('#draftBox');
+  renderClMissing();
   var cr=$('#rName');if(cr&&cr.value)routineName=cr.value;
   if(!draft.length&&!missing.length){box.innerHTML='';return}
   var h='';
@@ -957,7 +953,7 @@ function renderDraft(){
   }
   if(missing.length){
     h+='<div class="card"><h2>Nicht gefunden</h2><div class="list">'+missing.map(function(m,i){
-      return '<div class="item"><div class="t"><strong>'+esc(m.name)+'</strong><div class="s">'+f1(m.g)+' g</div></div><div class="row"><button class="btn small" onclick="lookup('+i+')">Online suchen</button><button class="btn small primary" onclick="claudeFor('+i+')">Claude</button><button class="btn small" onclick="manualFor('+i+')">Manuell</button><button class="btn small" onclick="estOpenFor('+i+')">Schätzen</button><button class="btn small" onclick="dropMissing('+i+')" aria-label="Verwerfen">×</button></div></div>'+(estOpen===i?estPicker(i):'')}).join('')+'</div></div>';
+      return '<div class="item"><div class="t"><strong>'+esc(m.name)+'</strong><div class="s">'+f1(m.g)+' g</div></div><div class="row"><button class="btn small" onclick="lookup('+i+')">Online suchen</button><button class="btn small primary" onclick="claudeFor('+i+')">Claude</button><button class="btn small" onclick="photoFor('+i+')">Foto</button><button class="btn small" onclick="manualFor('+i+')">Manuell</button><button class="btn small" onclick="estOpenFor('+i+')">Schätzen</button><button class="btn small" onclick="dropMissing('+i+')" aria-label="Verwerfen">×</button></div></div>'+(estOpen===i?estPicker(i):'')}).join('')+'</div></div>';
   }
   box.innerHTML=h;
   var nr=$('#rName');if(nr&&routineName)nr.value=routineName;
@@ -1226,88 +1222,167 @@ function initSecs(){
 }
 function openSec(id){var e=$('#'+id);if(e)e.open=true}
 
-/* ---------- Grundzutaten (USDA FoodData Central) ---------- */
-var DE_EN={
- 'pak choi':'bok choy','chinakohl':'chinese cabbage','weißkohl':'cabbage','rotkohl':'red cabbage','wirsing':'savoy cabbage','grünkohl':'kale','rosenkohl':'brussels sprouts','blumenkohl':'cauliflower','brokkoli':'broccoli','spargel':'asparagus','spinat':'spinach','mangold':'swiss chard','rucola':'arugula','feldsalat':'corn salad','kopfsalat':'lettuce','eisbergsalat':'iceberg lettuce','salat':'lettuce','gurke':'cucumber','tomate':'tomatoes','paprika':'sweet pepper','chili':'chili pepper','zucchini':'zucchini','aubergine':'eggplant','kürbis':'pumpkin','süßkartoffel':'sweet potato','kartoffel':'potatoes','karotte':'carrots','möhre':'carrots','rote bete':'beets','sellerie':'celery','knollensellerie':'celeriac','fenchel':'fennel','lauch':'leeks','porree':'leeks','zwiebel':'onions','knoblauch':'garlic','ingwer':'ginger','radieschen':'radishes','rettich':'radish','kohlrabi':'kohlrabi','pilze':'mushrooms','champignons':'mushrooms','austernpilze':'oyster mushrooms','shiitake':'shiitake','erbsen':'peas','bohnen':'beans','linsen':'lentils','kichererbsen':'chickpeas','mais':'corn','edamame':'edamame','sojabohnen':'soybeans','tofu':'tofu','tempeh':'tempeh','artischocke':'artichokes','okra':'okra','rhabarber':'rhubarb','oliven':'olives','sauerkraut':'sauerkraut',
- 'apfel':'apples','birne':'pears','banane':'bananas','orange':'oranges','zitrone':'lemon','limette':'limes','mango':'mango','ananas':'pineapple','papaya':'papayas','kiwi':'kiwifruit','weintrauben':'grapes','erdbeeren':'strawberries','himbeeren':'raspberries','blaubeeren':'blueberries','heidelbeeren':'blueberries','brombeeren':'blackberries','johannisbeeren':'currants','stachelbeeren':'gooseberries','kirschen':'cherries','pflaume':'plums','zwetschge':'plums','pfirsich':'peaches','nektarine':'nectarines','aprikose':'apricots','melone':'melons','wassermelone':'watermelon','granatapfel':'pomegranates','feige':'figs','dattel':'dates','kokosnuss':'coconut','kokos':'coconut','avocado':'avocados','cranberries':'cranberries','mandarine':'tangerines','grapefruit':'grapefruit','litschi':'litchis','passionsfrucht':'passion fruit',
- 'rind':'beef','rindfleisch':'beef','schwein':'pork','schweinefleisch':'pork','huhn':'chicken','hähnchen':'chicken','hühnchen':'chicken','pute':'turkey','truthahn':'turkey','lamm':'lamb','kalb':'veal','ente':'duck','gans':'goose','wild':'game meat','hirsch':'venison','reh':'venison','hase':'rabbit','kaninchen':'rabbit','hack':'ground','hackfleisch':'ground','filet':'tenderloin','brust':'breast','keule':'drumstick','schenkel':'thigh','flügel':'wing','leber':'liver','herz':'heart','nieren':'kidneys','zunge':'tongue','schinken':'ham','speck':'bacon','wurst':'sausage','steak':'steak','kotelett':'chop','nacken':'shoulder','bauch':'belly','rippchen':'ribs','gulasch':'stew meat','rücken':'loin','hüfte':'sirloin','schnitzel':'cutlet',
- 'lachs':'salmon','thunfisch':'tuna','forelle':'trout','kabeljau':'cod','dorsch':'cod','hering':'herring','makrele':'mackerel','sardine':'sardine','garnelen':'shrimp','krabben':'crab','tintenfisch':'squid','muscheln':'mussels','seelachs':'pollock','karpfen':'carp','scholle':'plaice','heilbutt':'halibut','aal':'eel','zander':'perch','thun':'tuna','fisch':'fish','hummer':'lobster','austern':'oyster',
- 'reis':'rice','vollkornreis':'brown rice','haferflocken':'oats','hafer':'oats','weizen':'wheat','dinkel':'spelt','roggen':'rye','gerste':'barley','hirse':'millet','quinoa':'quinoa','buchweizen':'buckwheat','mehl':'flour','nudeln':'pasta','brot':'bread','couscous':'couscous','bulgur':'bulgur','polenta':'cornmeal','amaranth':'amaranth','grieß':'semolina',
- 'mandeln':'almonds','walnüsse':'walnuts','walnuss':'walnuts','haselnüsse':'hazelnuts','haselnuss':'hazelnuts','cashews':'cashew nuts','erdnüsse':'peanuts','pistazien':'pistachio nuts','pekannüsse':'pecans','macadamia':'macadamia nuts','paranüsse':'brazil nuts','sonnenblumenkerne':'sunflower seeds','kürbiskerne':'pumpkin seeds','leinsamen':'flaxseed','chiasamen':'chia seeds','sesam':'sesame seeds','mohn':'poppy seeds','kokosraspeln':'coconut shredded',
- 'milch':'milk','joghurt':'yogurt','käse':'cheese','butter':'butter','sahne':'cream','ei':'egg','eier':'egg','eigelb':'egg yolk','eiweiß':'egg white','quark':'cottage cheese','frischkäse':'cream cheese','mozzarella':'mozzarella','parmesan':'parmesan','feta':'feta','öl':'oil','olivenöl':'olive oil','rapsöl':'canola oil','honig':'honey','zucker':'sugar','essig':'vinegar','schokolade':'chocolate','kakao':'cocoa','hefe':'yeast','salz':'salt','pfeffer':'pepper','zimt':'cinnamon','petersilie':'parsley','basilikum':'basil','dill':'dill','schnittlauch':'chives','minze':'peppermint','koriander':'coriander',
- 'roh':'raw','rohes':'raw','gekocht':'cooked','gebraten':'fried','gegrillt':'grilled','gedünstet':'steamed','getrocknet':'dried','gebacken':'baked','ohne':'without','mit':'with','haut':'skin','knochen':'bone','mager':'lean','fett':'fat','schale':'peel'
-};
-var lastFdc=[],fdcQuery='';
-function deWord(t){
-  if(DE_EN[t])return DE_EN[t];
-  var sf=['n','en','e','s','er'];
-  for(var i=0;i<sf.length;i++){var b=t.slice(0,t.length-sf[i].length);if(t.length>sf[i].length+2&&t.slice(-sf[i].length)===sf[i]&&DE_EN[b])return DE_EN[b]}
-  var links=['','s','e','er','en','n'];
-  for(var k=3;k<=t.length-3;k++){
-    var a=t.slice(0,k);if(!DE_EN[a])continue;
-    for(var l=0;l<links.length;l++){
-      if(t.slice(k,k+links[l].length)!==links[l])continue;
-      var b2=t.slice(k+links[l].length);
-      if(b2.length>=3&&DE_EN[b2])return DE_EN[a]+' '+DE_EN[b2];
+/* ---------- Nährwerttabelle per Foto (OCR) ---------- */
+var tessLoading=null;
+function loadTess(){
+  if(window.Tesseract)return Promise.resolve();
+  if(tessLoading)return tessLoading;
+  tessLoading=new Promise(function(res,rej){
+    var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+    s.onload=res;s.onerror=function(){tessLoading=null;rej(new Error('load'))};document.head.appendChild(s);
+  });
+  return tessLoading;
+}
+function setTb(t){var e=$('#tbInfo');if(e)e.textContent=t}
+function binarize(x,w,h){
+  var im=x.getImageData(0,0,w,h),p=im.data,n=w*h,g=new Uint8Array(n),i,X,Y,row;
+  for(i=0;i<n;i++)g[i]=p[i*4];
+  var integ=new Float64Array((w+1)*(h+1));
+  for(Y=0;Y<h;Y++){row=0;for(X=0;X<w;X++){row+=g[Y*w+X];integ[(Y+1)*(w+1)+X+1]=integ[Y*(w+1)+X+1]+row}}
+  var r=Math.max(8,Math.round(Math.min(w,h)/40)),out=x.createImageData(w,h),o=out.data;
+  for(Y=0;Y<h;Y++){
+    var y0=Math.max(0,Y-r),y1=Math.min(h-1,Y+r);
+    for(X=0;X<w;X++){
+      var x0=Math.max(0,X-r),x1=Math.min(w-1,X+r),area=(x1-x0+1)*(y1-y0+1);
+      var sum=integ[(y1+1)*(w+1)+x1+1]-integ[y0*(w+1)+x1+1]-integ[(y1+1)*(w+1)+x0]+integ[y0*(w+1)+x0];
+      var v=g[Y*w+X]<sum/area-12?0:255,k=(Y*w+X)*4;o[k]=o[k+1]=o[k+2]=v;o[k+3]=255;
     }
   }
-  return t;
+  var c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').putImageData(out,0,0);return c;
 }
-function toEn(q){
-  var tk=String(q).toLowerCase().split(/[\s,;\/]+/).filter(Boolean),out=[];
-  for(var i=0;i<tk.length;i++){
-    var two=tk[i+1]?tk[i]+' '+tk[i+1]:'';
-    if(two&&DE_EN[two]){out.push(DE_EN[two]);i++}else out.push(deWord(tk[i]));
+function prepImage(file){
+  return new Promise(function(res,rej){
+    var url=URL.createObjectURL(file),img=new Image();
+    img.onload=function(){
+      var sc=Math.min(2.5,2200/Math.max(img.width,img.height)),w=Math.round(img.width*sc),h=Math.round(img.height*sc);
+      var c=document.createElement('canvas');c.width=w;c.height=h;
+      var x=c.getContext('2d');x.drawImage(img,0,0,w,h);URL.revokeObjectURL(url);
+      var bin=c;
+      try{
+        var im=x.getImageData(0,0,w,h),p=im.data,hist=new Array(256).fill(0),i,g;
+        for(i=0;i<p.length;i+=4){g=Math.round(p[i]*.299+p[i+1]*.587+p[i+2]*.114);p[i]=p[i+1]=p[i+2]=g;hist[g]++}
+        var tot=w*h,lo=0,hi=255,acc=0;
+        for(i=0;i<256;i++){acc+=hist[i];if(acc>tot*.02){lo=i;break}}
+        acc=0;for(i=255;i>=0;i--){acc+=hist[i];if(acc>tot*.02){hi=i;break}}
+        if(hi-lo<30){lo=0;hi=255}
+        var k=255/(hi-lo);
+        for(i=0;i<p.length;i+=4){g=Math.max(0,Math.min(255,(p[i]-lo)*k));p[i]=p[i+1]=p[i+2]=g}
+        x.putImageData(im,0,0);
+        bin=binarize(x,w,h);
+      }catch(e){}
+      res({gray:c,bin:bin});
+    };
+    img.onerror=function(){rej(new Error('img'))};img.src=url;
+  });
+}
+function parseNutri(text){
+  var lines=String(text).replace(/\r/g,'').split('\n').map(function(l){return l.trim()}).filter(Boolean);
+  var res={k:null,p:null,c:null,f:null,warn:''};
+  function nn(s){return parseFloat(String(s).replace(',','.'))}
+  var all=lines.join(' \n ').toLowerCase().replace(/(\d)[ .](?=\d{3}\s*kj)/g,'$1');
+  var mk=all.match(/(\d+(?:[.,]\d+)?)\s*kc\w{0,3}/);
+  if(mk){res.k=nn(mk[1]);if(res.k>900){var dg=mk[1].replace(/\D/g,'');res.k=parseInt(dg.slice(-3),10);if(res.k<30)res.k=parseInt(dg.slice(-2),10)}}
+  else{var mj=all.match(/(\d+(?:[.,]\d+)?)\s*kj/);if(mj)res.k=Math.round(nn(mj[1])/4.184)}
+  function cands(rest){
+    rest=rest.replace(/(^|\s)[aA](?=\d)/,'$14').replace(/(^|\s)[sS](?=\d)/,'$15').replace(/(?<=\d)[Oo]|[Oo](?=\d)/g,'0');
+    var m=rest.match(/(\d+(?:[.,]\d+)?)(\s*[gG]\b|\s*[gG](?=\d)|\s+9(?![\d,.]))?/);
+    if(!m)return [];
+    var tok=m[1],out=[];
+    if(m[2]){out.push([nn(tok),0])}
+    else{
+      if(tok.slice(-1)==='9'&&tok.length>=2){
+        var t=tok.slice(0,-1).replace(/[.,]$/,'');
+        if(/^0\d/.test(t))out.push([nn(t.slice(0,-1)+'.'+t.slice(-1)),0]);
+        else{
+          out.push([nn(t),0]);
+          if(!/[.,]/.test(t)&&t.length>=2)out.push([nn(t.slice(0,-1)+'.'+t.slice(-1)),15]);
+        }
+      }
+      out.push([nn(tok),tok.slice(-1)==='9'?20:0]);
+    }
+    return out.filter(function(o){return o[0]>=0&&o[0]<=100});
   }
-  var s=out.join(' ').replace(/\s+/g,' ').trim();
-  if(!/\b(raw|cooked|fried|grilled|steamed|dried|baked|roasted|boiled)\b/.test(s))s+=' raw';
-  return s;
+  var C={f:[],c:[],p:[]},rows=[],ci=-1,ei=-1;
+  lines.forEach(function(raw){
+    var l=raw.toLowerCase(),m;
+    if(/^\W*(davon|ges[aä]ttigt|zucker|ballast|salz|natrium|einfach|mehrfach|[-•*]\s*(davon|ges))/.test(l))return;
+    if(/kj|kcal|pro\s*100|je\s*100|portion|n[aä]hrwert/.test(l)&&!/^\W*(fett|k[o0]h|eiw)/.test(l)){ei=rows.length;return}
+    if(!/\d/.test(l))return;
+    var kind=null;
+    if(!C.f.length&&(m=l.match(/^\W*(fett(?![a-zäöüß])|fe[tüuil1][a-zäöüß]?(?![a-zäöüß])|f[e3][tl1]{2}(?![a-zäöüß]))/))){C.f=cands(l.slice(m[0].length));kind='f'}
+    else if(!C.c.length&&(m=l.match(/^\W*(k[o0]h[l1i]\w*|kohl\w*hydr\w*)/))){C.c=cands(l.slice(m[0].length));kind='c';ci=rows.length}
+    else if(!C.p.length&&(m=l.match(/^\W*(eiwei\w*|eiw\w*|[ec][il1mn]w[eaä]\w*|protein\w*)/))){C.p=cands(l.slice(m[0].length));kind='p'}
+    rows.push({l:l,kind:kind});
+  });
+  if(!C.f.length&&ci>0){var fr=rows[ci-1];if(fr&&!fr.kind)C.f=cands(fr.l.replace(/^[^\d<]*/,''))}
+  if(!C.p.length&&ci>-1){
+    for(var q=ci+1;q<rows.length;q++){var r=rows[q];if(r.kind||/ballast|faser|salz|sal[zt]\b/.test(r.l))continue;var pc=cands(r.l.replace(/^[^\d<]*/,''));if(pc.length){C.p=pc;break}}
+  }
+  var best=null;
+  var F=C.f.length?C.f:[null],Cc=C.c.length?C.c:[null],P=C.p.length?C.p:[null];
+  F.forEach(function(fo){Cc.forEach(function(co){P.forEach(function(po){
+    var f=fo&&fo[0],c=co&&co[0],p=po&&po[0];
+    var sum=(f||0)+(c||0)+(p||0);if(sum>101)return;
+    var score=(fo?fo[1]:0)+(co?co[1]:0)+(po?po[1]:0);
+    if(res.k!==null&&f!==null&&c!==null&&p!==null)score+=Math.abs(4*p+4*c+9*f-res.k);
+    if(!best||score<best.s)best={s:score,f:f,c:c,p:p};
+  })})});
+  if(best){res.f=best.f;res.c=best.c;res.p=best.p}
+  var got=(res.p!==null)+(res.c!==null)+(res.f!==null);
+  if(res.k===null&&got===3)res.k=Math.round(res.p*4+res.c*4+res.f*9);
+  if(res.k!==null&&got===3){
+    var calc=res.p*4+res.c*4+res.f*9;
+    if(res.k>0&&Math.abs(calc-res.k)/res.k>.22)res.warn='Die Werte passen nicht ganz zusammen (kcal weicht von Eiweiß, Kohlenhydraten und Fett ab). Bitte mit der Packung vergleichen.';
+  }
+  if(got<3||res.k===null)res.warn=(res.warn?res.warn+' ':'')+'Nicht alle Werte erkannt, bitte fehlende ergänzen.';
+  return res;
 }
-function fdcKey(){return (S.meta&&S.meta.fdcKey)||'DEMO_KEY'}
-function saveFdcKey(){var v=($('#fdcKey').value||'').trim();S.meta.fdcKey=v;save();toast(v?'Schlüssel gespeichert':'Demo-Schlüssel wird verwendet')}
-function nutOf(f,ids){
-  var ns=f.foodNutrients||[];
-  for(var i=0;i<ids.length;i++){for(var j=0;j<ns.length;j++){if(ns[j].nutrientId===ids[i]&&typeof ns[j].value==='number')return ns[j].value}}
-  return null;
+
+function mergeNutri(a,b){
+  function sc(r){return ((r.k!==null)+(r.p!==null)+(r.c!==null)+(r.f!==null))*10-(r.warn?5:0)}
+  var x=sc(b)>sc(a)?b:a,y=x===a?b:a,o={k:x.k,p:x.p,c:x.c,f:x.f,warn:x.warn};
+  ['k','p','c','f'].forEach(function(t){if(o[t]===null&&y[t]!==null)o[t]=y[t]});
+  var got0=(o.p!==null)+(o.c!==null)+(o.f!==null);
+  if(got0===3&&x.k!==null&&y.k!==null&&x.k!==y.k){var cc=o.p*4+o.c*4+o.f*9;o.k=Math.abs(cc-y.k)<Math.abs(cc-x.k)?y.k:x.k}
+  var got=(o.p!==null)+(o.c!==null)+(o.f!==null);
+  if(o.k===null&&got===3)o.k=Math.round(o.p*4+o.c*4+o.f*9);
+  o.warn='';
+  if(o.k!==null&&got===3){var calc=o.p*4+o.c*4+o.f*9;if(o.k>0&&Math.abs(calc-o.k)/o.k>.22)o.warn='Die Werte passen nicht ganz zusammen (kcal weicht von Eiweiß, Kohlenhydraten und Fett ab). Bitte mit der Packung vergleichen.'}
+  if(got<3||o.k===null)o.warn=(o.warn?o.warn+' ':'')+'Nicht alle Werte erkannt, bitte fehlende ergänzen.';
+  return o;
 }
-function parseFdc(f){
-  var p=nutOf(f,[1003]),c=nutOf(f,[1005]),fa=nutOf(f,[1004]),k=nutOf(f,[1008,2047,2048]);
-  if(p===null&&c===null&&fa===null&&k===null)return null;
-  p=p||0;c=c||0;fa=fa||0;if(k===null)k=p*4+c*4+fa*9;
-  function r1(x){return Math.round(x*10)/10}
-  return {n:f.description||'',t:f.dataType||'',k:Math.round(k),p:r1(p),c:r1(c),f:r1(fa)};
-}
-function fdcSearch(){
-  var q=($('#fdcQ').value||'').trim();if(!q){toast('Bitte einen Namen eingeben');return}
-  fdcQuery=q;var en=toEn(q),box=$('#fdcBox');
-  box.innerHTML='<p class="muted" style="margin:0">Suche …</p>';
-  fetch('https://api.nal.usda.gov/fdc/v1/foods/search?query='+encodeURIComponent(en)+'&dataType=Foundation,SR%20Legacy&pageSize=10&api_key='+encodeURIComponent(fdcKey()))
-    .then(function(r){if(r.status===429)throw new Error('limit');if(r.status===403)throw new Error('key');if(!r.ok)throw new Error('http');return r.json()})
-    .then(function(j){lastFdc=(j.foods||[]).map(parseFdc).filter(Boolean);renderFdc(en)})
-    .catch(function(e){
-      lastFdc=[];
-      box.innerHTML='<div class="warnbox">'+(e.message==='limit'?'Tageslimit des Demo-Schlüssels erreicht. Später nochmal versuchen oder unten einen eigenen, kostenlosen Schlüssel eintragen.':e.message==='key'?'Der USDA-Schlüssel ist ungültig.':'Suche nicht möglich. Internetverbindung prüfen.')+'</div>';
+function fmtN(v){return v===null?'':String(Math.round(v*10)/10).replace('.',',')}
+function tableOcr(e){
+  var f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;
+  setTb('Bild wird vorbereitet …');
+  Promise.all([prepImage(f),loadTess().catch(function(){throw new Error('load')})]).then(function(r){
+    setTb('Texterkennung startet, beim ersten Mal lädt sie ca. 15 MB …');
+    return Promise.resolve(Tesseract.createWorker('deu',1,{logger:function(m){
+      if(m.status==='recognizing text')setTb('Lese Text … '+Math.round((m.progress||0)*100)+' %');
+      else if(/load|init/.test(m.status||''))setTb('Lade Sprachdaten … '+Math.round((m.progress||0)*100)+' %');
+    }})).then(function(w){
+      return w.recognize(r[0].gray).then(function(a){
+        return w.recognize(r[0].bin).then(function(b){
+          return w.terminate().then(function(){return [(a.data&&a.data.text)||'',(b.data&&b.data.text)||'']});
+        });
+      });
     });
+  }).then(function(t){
+    var raw=$('#tbRaw');if(raw)raw.textContent=t[0]+'\n-----\n'+t[1];
+    var n=mergeNutri(parseNutri(t[0]),parseNutri(t[1]));
+    if(n.k===null&&n.p===null&&n.c===null&&n.f===null){setTb('Keine Nährwerte erkannt. Bitte näher, gerader und heller fotografieren, dann nochmal.');return}
+    $('#mK').value=fmtN(n.k);$('#mP').value=fmtN(n.p);$('#mC').value=fmtN(n.c);$('#mF').value=fmtN(n.f);
+    setTb('Erkannt: '+(n.k!==null?f0(n.k)+' kcal':'? kcal')+', Eiweiß '+(n.p!==null?f1(n.p):'?')+', KH '+(n.c!==null?f1(n.c):'?')+', Fett '+(n.f!==null?f1(n.f):'?')+' (pro 100 g). '+(n.warn?n.warn+' ':'Bitte kurz mit der Packung vergleichen. ')+'Unten Namen eintragen und speichern.');
+    var nm=$('#mName');if(nm){nm.scrollIntoView({behavior:'smooth',block:'center'});if(!nm.value)nm.focus()}
+  }).catch(function(err){
+    setTb(err&&err.message==='load'?'Die Texterkennung konnte nicht geladen werden. Dafür ist beim ersten Mal Internet nötig.':'Das Foto konnte nicht gelesen werden. Bitte nochmal versuchen.');
+  });
 }
-function renderFdc(en){
-  var box=$('#fdcBox');
-  if(!lastFdc.length){box.innerHTML='<div class="warnbox">Keine Treffer für „'+esc(en)+'“. Versuche einen anderen oder den englischen Namen.</div>';return}
-  box.innerHTML='<p class="muted" style="margin:0 0 4px">Gesucht nach: '+esc(en)+' · Werte pro 100 g</p>'+lastFdc.map(function(f,i){
-    return '<div class="item"><div class="t"><strong>'+esc(f.n)+'</strong><div class="s">'+f0(f.k)+' kcal · P '+f1(f.p)+' · C '+f1(f.c)+' · F '+f1(f.f)+'</div></div><button class="btn small primary" onclick="pickFdc('+i+')">Nehmen</button></div>'}).join('');
-}
-function pickFdc(i){
-  var f=lastFdc[i];if(!f)return;
-  var n=cleanName(fdcQuery);n=n.charAt(0).toUpperCase()+n.slice(1);
-  if(!n){toast('Name fehlt');return}
-  var ex=S.db.filter(function(x){return x.n.toLowerCase()===n.toLowerCase()})[0],nf;
-  if(ex){ex.k=f.k;ex.p=f.p;ex.c=f.c;ex.f=f.f;nf=ex;save()}
-  else nf=addFoodToDb({n:n,k:f.k,p:f.p,c:f.c,f:f.f,src:'USDA'});
-  useFood(nf);toast('In Datenbank gespeichert');window.scrollTo({top:0,behavior:'smooth'});
-}
-function fdcFor(i){
+function photoFor(i){
   openSec('newFoodCard');pendingIdx=i;
-  $('#fdcQ').value=missing[i].name;$('#offG').value=String(missing[i].g);
-  $('#newFoodCard').scrollIntoView({behavior:'smooth'});fdcSearch();
+  $('#mName').value=missing[i].name;$('#offG').value=String(missing[i].g);
+  $('#newFoodCard').scrollIntoView({behavior:'smooth'});
+  var t=$('#tbFile');if(t)t.click();
 }
 
 /* ---------- Geräte-Abgleich (GitHub) ---------- */
@@ -1433,6 +1508,27 @@ function claudePaste(){
   if(!navigator.clipboard||!navigator.clipboard.readText){toast('Einfügen nicht möglich, bitte ins Feld einfügen');return}
   navigator.clipboard.readText().then(function(t){$('#clImp').value=t;claudeImport()}).catch(function(){toast('Zwischenablage nicht erlaubt, bitte ins Feld einfügen')});
 }
+function renderClMissing(){
+  var e=$('#clMissing');if(!e)return;
+  if(!missing.length){e.innerHTML='';return}
+  e.innerHTML='<p class="muted" style="margin:0 0 6px">In deiner Mahlzeit nicht erkannt. Ein Tipp fragt Claude direkt:</p><div class="row">'+missing.map(function(m,i){return '<button class="btn primary" onclick="claudeFor('+i+')">Claude fragen: '+esc(m.name)+'</button>'}).join('')+(missing.length>1?'<button class="btn" onclick="claudeAskAll()">Alle auf einmal</button>':'')+'</div>';
+}
+function claudeAskAll(){
+  var names=missing.map(function(m){return m.name});if(!names.length)return;
+  pendingIdx=null;$('#clQ').value='';
+  var p='Gib mir die durchschnittlichen Nährwerte pro 100 g für diese Lebensmittel: '+names.join('; ')+'. Antworte nur als Codeblock mit genau einer Zeile pro Lebensmittel in diesem Format: Name | kcal | Eiweiß g | Kohlenhydrate g | Fett g | typisches Gewicht eines Stücks oder einer Portion in g. Beispiel: Rotweinkuchen | 380 | 5 | 50 | 18 | 100. Verwende den Namen genau wie angegeben.';
+  try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(p).catch(function(){})}catch(e){}
+  window.open('https://claude.ai/new?q='+encodeURIComponent(p),'_blank');
+  toast('Frage kopiert, Claude öffnet sich');
+}
+function resolveMissing(){
+  var left=[],n=0;
+  missing.forEach(function(m){
+    var fd=findFood(m.name);
+    if(fd){draft.push({food:fd,g:(m.pc&&fd.piece)?Math.round(m.pc*fd.piece):m.g});n++}else left.push(m);
+  });
+  missing=left;pendingIdx=null;renderDraft();return n;
+}
 function claudeFor(i){
   openSec('newFoodCard');pendingIdx=i;
   $('#clQ').value=missing[i].name;$('#offG').value=String(missing[i].g);
@@ -1466,8 +1562,9 @@ function claudeImport(){
     if(m.pc&&last.piece)$('#offG').value=String(Math.round(m.pc*last.piece));
     useFood(last);toast('In Datenbank gespeichert');window.scrollTo({top:0,behavior:'smooth'});
   }else{
-    toast(foods.length>1?foods.length+' Lebensmittel gespeichert':'Gespeichert. Mahlzeit jetzt neu berechnen.');
-    if(foods.length===1)window.scrollTo({top:0,behavior:'smooth'});
+    var rn=resolveMissing();
+    toast(rn?'Gespeichert und zur Mahlzeit hinzugefügt':(foods.length>1?foods.length+' Lebensmittel gespeichert':'Gespeichert. Mahlzeit jetzt neu berechnen.'));
+    if(rn||foods.length===1)window.scrollTo({top:0,behavior:'smooth'});
   }
 }
 /* ---------- Neue Lebensmittel ---------- */
