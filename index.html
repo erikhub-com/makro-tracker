@@ -355,6 +355,9 @@ nav button[aria-current=page]{background:var(--accent);color:var(--accent-fg);bo
       <h3 style="margin-top:18px">Kalorien pro Tag</h3>
       <div id="kChart"></div>
       <div class="legend" id="kLegend"></div>
+      <h3 style="margin-top:18px">Makros über die Zeit</h3>
+      <div id="mChart"></div>
+      <div class="legend" id="mLegend"></div>
     </div>
     <div class="card">
       <h2>Wochenübersicht</h2>
@@ -1829,6 +1832,37 @@ function kcalChart(){
   g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(tg).toFixed(1)+'" y2="'+Y(tg).toFixed(1)+'" stroke="var(--fg)" stroke-width="1.2" stroke-dasharray="4 3"/>';
   return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="Kalorien pro Tag">'+g+'</svg>';
 }
+function macroChart(){
+  var end=today0(),from=addDays(end,-(rangeDays-1)),tg=target(),days=[];
+  for(var i=-6;i<rangeDays;i++){var k=dayKey(addDays(from,i));days.push((S.log[k]||[]).length?dayTotals(k):null)}
+  var any=days.some(function(x){return x});
+  if(!any)return '<p class="muted" style="margin:0">Noch keine getrackten Tage in diesem Zeitraum.</p>';
+  var keys=['p','c','f'],cols={p:'var(--p)',c:'var(--c)',f:'var(--f)'};
+  var W=360,H=190,L=40,R=10,T=10,B=24,pw=W-L-R,ph=H-T-B,mx=0;
+  var avg={p:[],c:[],f:[]};
+  for(var i=6;i<days.length;i++){
+    keys.forEach(function(m){
+      var s=0,n=0;for(var j=i-6;j<=i;j++){if(days[j]){s+=days[j][m];n++}}
+      var v=n?s/n:null;avg[m].push(v);
+      if(v!==null)mx=Math.max(mx,v);if(days[i]&&days[i][m]>mx)mx=days[i][m];
+    });
+  }
+  keys.forEach(function(m){if(tg[m]&&tg[m]>mx)mx=tg[m]});
+  var ticks=niceTicks(0,mx*1.05,4),y1=ticks[ticks.length-1];
+  function Y(v){return T+(1-v/y1)*ph}
+  function X(i){return L+(rangeDays>1?i/(rangeDays-1):0.5)*pw}
+  var g='';
+  ticks.forEach(function(v){g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(v).toFixed(1)+'" y2="'+Y(v).toFixed(1)+'" stroke="var(--line)" stroke-width="1"/><text x="'+(L-6)+'" y="'+(Y(v)+4).toFixed(1)+'" text-anchor="end" font-size="11" fill="var(--muted)">'+Math.round(v)+'</text>'});
+  [0,0.5,1].forEach(function(f,i){g+='<text x="'+(L+f*pw)+'" y="'+(H-6)+'" text-anchor="'+(i===0?'start':i===2?'end':'middle')+'" font-size="11" fill="var(--muted)">'+fmtShort(addDays(from,Math.round((rangeDays-1)*f)))+'</text>'});
+  keys.forEach(function(m){
+    if(tg[m])g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(tg[m]).toFixed(1)+'" y2="'+Y(tg[m]).toFixed(1)+'" stroke="'+cols[m]+'" stroke-width="1" stroke-dasharray="3 4" opacity=".6"/>';
+    for(var i=0;i<rangeDays;i++){var dv=days[i+6];if(dv)g+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(dv[m]).toFixed(1)+'" r="1.8" fill="'+cols[m]+'" opacity=".35"/>'}
+    var path='',pen=false;
+    for(var i=0;i<rangeDays;i++){var v=avg[m][i];if(v===null){pen=false;continue}path+=(pen?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)+' ';pen=true}
+    g+='<path d="'+path+'" fill="none" stroke="'+cols[m]+'" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>';
+  });
+  return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="Eiweiß, Kohlenhydrate und Fett über die Zeit in Gramm">'+g+'</svg>';
+}
 function renderStats(){
   if(!$('#bDate').value){$('#bDate').value=dayKey(new Date());loadBodyFor()}
   var rs=[[28,'4 Wochen'],[84,'12 Wochen'],[180,'6 Monate']];
@@ -1836,6 +1870,8 @@ function renderStats(){
   $('#trendInfo').textContent=trendText();
   $('#wChart').innerHTML=weightChart();
   $('#kChart').innerHTML=kcalChart();
+  $('#mChart').innerHTML=macroChart();
+  $('#mLegend').innerHTML='<span style="--c1:var(--p)">Eiweiß</span><span style="--c1:var(--c)">Kohlenhydrate</span><span style="--c1:var(--f)">Fett</span><span style="--c1:var(--muted)">Linie: 7-Tage-Schnitt in g, Punkte: einzelne Tage, gestrichelt: Ziel</span>';
   $('#kLegend').innerHTML='<span style="--c1:var(--accent)">im Ziel (±10 %)</span><span style="--c1:var(--bad)">darüber</span><span style="--c1:var(--muted)">darunter</span><span style="--c1:var(--fg)">Zielwert</span>';
   var ks=Object.keys(S.body).sort().reverse().slice(0,8);
   $('#bodyList').innerHTML=ks.map(function(k){
