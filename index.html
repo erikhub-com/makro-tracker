@@ -1288,7 +1288,12 @@ function parseNutri(text){
     var m=rest.match(/(\d+(?:[.,]\d+)?)(\s*[gG]\b|\s*[gG](?=\d)|\s+9(?![\d,.]))?/);
     if(!m)return [];
     var tok=m[1],out=[];
-    if(m[2]){out.push([nn(tok),0])}
+    if(m[2]){
+      var hasSep=/[.,]/.test(tok);
+      if(hasSep&&/\d9$/.test(tok)){out.push([nn(tok.slice(0,-1)),0]);out.push([nn(tok),3])}
+      else if(!hasSep&&tok.length>=3){out.push([nn(tok.slice(0,-1)),0]);out.push([nn(tok),0])}
+      else out.push([nn(tok),0]);
+    }
     else{
       if(tok.slice(-1)==='9'&&tok.length>=2){
         var t=tok.slice(0,-1).replace(/[.,]$/,'');
