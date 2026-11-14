@@ -218,6 +218,16 @@ nav button[aria-current=page]{background:var(--accent);color:var(--accent-fg);bo
 
     <div id="draftBox"></div>
 
+    <details class="card sec" id="sec-out" open ontoggle="secTg(this)">
+      <summary><h2>Essen außerhalb</h2><span class="chev" aria-hidden="true"></span></summary>
+      <p class="muted" style="margin:0 0 8px">Restaurant, Imbiss, Café, Kantine: Schreib, was du gegessen hast. Claude schätzt die Werte für die ganze Portion, du fügst sie hier ein.</p>
+      <textarea id="outQ" rows="2" placeholder="z. B. Döner mit Pommes und eine Cola, oder: Pizza Margherita 30 cm"></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn primary grow" onclick="outAsk()">Claude fragen</button><button class="btn" data-l="🎤 Sprechen" onclick="voiceInput('outQ',this)">🎤 Sprechen</button></div>
+      <textarea id="outImp" rows="3" style="margin-top:8px" placeholder="Antwort von Claude hier einfügen, z. B. Döner Kebab | 750 | 38 | 70 | 34"></textarea>
+      <div class="row" style="margin-top:6px"><button class="btn primary" onclick="outPaste()">Einfügen &amp; übernehmen</button><button class="btn" onclick="outImport()">Text übernehmen</button></div>
+      <p class="muted" style="margin:8px 0 0">Die Werte sind Schätzungen und werden mit ~ markiert. Du siehst sie oben im Nährwert-Check und kannst sie als Routine speichern.</p>
+    </details>
+
     <details class="card sec" id="sec-quick" open ontoggle="secTg(this)">
       <summary><h2>Schnellwahl</h2><span class="chev" aria-hidden="true"></span></summary>
       <div id="quickBox" class="chips"></div>
@@ -1560,6 +1570,42 @@ function parseClaudeLine(l){
   var v=parts.slice(1,6).map(function(x){var m=x.match(/\d+(?:[.,]\d+)?/);return m?parseFloat(m[0].replace(',','.')):null});
   if(!n||v[0]===null||v[1]===null||v[2]===null||v[3]===null)return null;
   return {n:n,k:Math.round(v[0]),p:r1c(v[1]),c:r1c(v[2]),f:r1c(v[3]),piece:v[4]>0?Math.round(v[4]):0};
+}
+function outPrompt(q){
+  return 'Schätze die Nährwerte für folgendes Essen außer Haus (Restaurant, Imbiss, Café, Kantine): '+q+'. Gehe von einer üblichen Portionsgröße aus und nenne die Gesamtwerte für die komplette Portion wie gegessen, nicht pro 100 g. Antworte nur als Codeblock mit genau einer Zeile pro Gericht oder Getränk in diesem Format: Name | kcal | Eiweiß g | Kohlenhydrate g | Fett g. Beispiel: Döner Kebab | 750 | 38 | 70 | 34. Kein weiterer Text.';
+}
+function outAsk(){
+  var q=($('#outQ').value||'').trim();if(!q){toast('Bitte eintragen, was du gegessen hast');return}
+  var p=outPrompt(q);
+  try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(p).catch(function(){})}catch(e){}
+  window.open('https://claude.ai/new?q='+encodeURIComponent(p),'_blank');
+  toast('Frage kopiert, Claude öffnet sich');
+}
+function outNum(x){
+  var r=String(x).match(/(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)/);
+  if(r)return (parseFloat(r[1].replace(',','.'))+parseFloat(r[2].replace(',','.')))/2;
+  var m=String(x).match(/\d+(?:[.,]\d+)?/);return m?parseFloat(m[0].replace(',','.')):null;
+}
+function parseOutLine(l){
+  l=l.replace(/^\s*\|/,'').replace(/\|\s*$/,'');
+  var parts=l.split('|').map(function(x){return x.trim()});
+  if(parts.length<5)return null;
+  var n=parts[0].replace(/[*_`#]/g,'').replace(/^[-•\s]+/,'').trim();n=n.charAt(0).toUpperCase()+n.slice(1);
+  var v=parts.slice(1,5).map(outNum);
+  if(!n||v.some(function(x){return x===null}))return null;
+  return {n:n,k:Math.round(v[0]),p:r1c(v[1]),c:r1c(v[2]),f:r1c(v[3])};
+}
+function outImport(){
+  var rows=($('#outImp').value||'').split(/\n/).map(parseOutLine).filter(Boolean);
+  if(!rows.length){toast('Keine passende Zeile. Format: Name | kcal | Eiweiß | KH | Fett');return}
+  rows.forEach(function(r){draft.push({food:{n:r.n,k:r.k*100,p:r.p*100,c:r.c*100,f:r.f*100,e:1},g:1})});
+  $('#outImp').value='';$('#outQ').value='';
+  renderDraft();$('#draftBox').scrollIntoView({behavior:'smooth',block:'start'});
+  toast(rows.length+(rows.length>1?' Einträge':' Eintrag')+' übernommen, bitte prüfen');
+}
+function outPaste(){
+  if(!navigator.clipboard||!navigator.clipboard.readText){toast('Einfügen nicht möglich, bitte ins Feld einfügen');return}
+  navigator.clipboard.readText().then(function(t){$('#outImp').value=t;outImport()}).catch(function(){toast('Zwischenablage nicht erlaubt, bitte ins Feld einfügen')});
 }
 function claudeImport(){
   var foods=($('#clImp').value||'').split(/\n/).map(parseClaudeLine).filter(Boolean);
