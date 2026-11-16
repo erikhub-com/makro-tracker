@@ -353,6 +353,11 @@ nav button[aria-current=page]{background:var(--accent);color:var(--accent-fg);bo
         <label class="f">Taille (cm, optional)<input id="bC" inputmode="decimal"></label>
       </div>
       <button class="btn primary" style="margin-top:10px;width:100%" onclick="saveBody()">Speichern</button>
+      <h3 style="margin-top:16px">Entwicklung</h3>
+      <p id="bodySum" class="muted" style="margin:0 0 6px"></p>
+      <div id="bChartW"></div>
+      <div class="legend" id="bLegW"></div>
+      <div id="bChartC" style="margin-top:10px"></div>
       <div id="bodyList" class="list" style="margin-top:10px"></div>
     </div>
     <div class="card">
@@ -1871,6 +1876,36 @@ function weightChart(){
   var last=s[s.length-1];
   return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="Gewichtsverlauf mit Trendlinie">'+g+dots+'<path d="'+line+'" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="'+X(last.d).toFixed(1)+'" cy="'+Y(last.t).toFixed(1)+'" r="4" fill="var(--accent)"/></svg>';
 }
+function bodyChart(key,unit,color,withTr){
+  var pts=Object.keys(S.body).filter(function(k){return S.body[k][key]}).sort().map(function(k){return {d:keyToDate(k),v:S.body[k][key]}});
+  var lab=key==='w'?'Gewicht':'Taille';
+  if(pts.length<2)return pts.length?'':'';
+  if(withTr)pts.forEach(function(p,i){var s=0,n=0;for(var j=i;j>=0&&(p.d-pts[j].d)/86400000<7;j--){s+=pts[j].v;n++}p.t=s/n});
+  var W=360,H=170,L=40,R=10,T=10,B=24,pw=W-L-R,ph=H-T-B;
+  var vals=pts.map(function(p){return p.v}).concat(withTr?pts.map(function(p){return p.t}):[]);
+  var mn=Math.min.apply(null,vals),mx=Math.max.apply(null,vals),pad=Math.max(0.3,(mx-mn)*0.15);
+  var ticks=niceTicks(mn-pad,mx+pad,4),y0=ticks[0],y1=ticks[ticks.length-1];
+  var t0=pts[0].d.getTime(),t1=pts[pts.length-1].d.getTime();if(t1===t0)t1=t0+86400000;
+  function X(d){return L+(d.getTime()-t0)/(t1-t0)*pw}
+  function Y(v){return T+(1-(v-y0)/(y1-y0))*ph}
+  var g='';
+  ticks.forEach(function(v){g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(v).toFixed(1)+'" y2="'+Y(v).toFixed(1)+'" stroke="var(--line)" stroke-width="1"/><text x="'+(L-6)+'" y="'+(Y(v)+4).toFixed(1)+'" text-anchor="end" font-size="11" fill="var(--muted)">'+fmtNum(v)+'</text>'});
+  [0,0.5,1].forEach(function(f,i){g+='<text x="'+(L+f*pw)+'" y="'+(H-6)+'" text-anchor="'+(i===0?'start':i===2?'end':'middle')+'" font-size="11" fill="var(--muted)">'+fmtShort(new Date(t0+(t1-t0)*f))+'</text>'});
+  var line=pts.map(function(p,i){return (i?'L':'M')+X(p.d).toFixed(1)+' '+Y(withTr?p.t:p.v).toFixed(1)}).join(' ');
+  var dots=pts.map(function(p){return '<circle cx="'+X(p.d).toFixed(1)+'" cy="'+Y(p.v).toFixed(1)+'" r="'+(withTr?2.8:3.2)+'" fill="'+(withTr?'var(--muted)':color)+'" opacity="'+(withTr?.75:1)+'"/>'}).join('');
+  var last=pts[pts.length-1];
+  return (withTr?'':'<h3 style="margin:6px 0 4px">Taille (cm)</h3>')+'<svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="'+lab+'-Entwicklung seit dem ersten Eintrag">'+g+'<path d="'+line+'" fill="none" stroke="'+color+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'+dots+(withTr?'<circle cx="'+X(last.d).toFixed(1)+'" cy="'+Y(last.t).toFixed(1)+'" r="4" fill="'+color+'"/>':'')+'</svg>';
+}
+function bodySummary(){
+  var out=[];
+  [['w','Gewicht','kg'],['c','Taille','cm']].forEach(function(m){
+    var ks=Object.keys(S.body).filter(function(k){return S.body[k][m[0]]}).sort();
+    if(ks.length<2)return;
+    var a=S.body[ks[0]][m[0]],b=S.body[ks[ks.length-1]][m[0]],dd=Math.round((b-a)*10)/10;
+    out.push(m[1]+' '+fmtNum(a)+' → '+fmtNum(b)+' '+m[2]+' ('+sgn(dd)+fmtNum(Math.abs(dd))+' seit '+fmtShort(keyToDate(ks[0]))+')');
+  });
+  return out.length?out.join(' · '):'Mit zwei Einträgen erscheint hier die Kurve.';
+}
 function kcalColor(k,tg){var r=k/tg;return r>1.1?'var(--bad)':r>=0.9?'var(--accent)':'var(--muted)'}
 function kcalChart(){
   var end=today0(),from=addDays(end,-(rangeDays-1)),tg=target().k,days=[];
@@ -1924,6 +1959,10 @@ function renderStats(){
   var rs=[[28,'4 Wochen'],[84,'12 Wochen'],[180,'6 Monate']];
   $('#rangeSeg').innerHTML=rs.map(function(r){return '<button aria-pressed="'+(rangeDays===r[0])+'" onclick="setRange('+r[0]+')">'+r[1]+'</button>'}).join('');
   $('#trendInfo').textContent=trendText();
+  $('#bodySum').textContent=bodySummary();
+  $('#bChartW').innerHTML=bodyChart('w','kg','var(--accent)',true);
+  $('#bLegW').innerHTML=Object.keys(S.body).filter(function(k){return S.body[k].w}).length>1?'<span style="--c1:var(--muted)">Messwert</span><span style="--c1:var(--accent)">Trend (7 Tage)</span>':'';
+  $('#bChartC').innerHTML=bodyChart('c','cm','var(--c)',false);
   $('#wChart').innerHTML=weightChart();
   $('#kChart').innerHTML=kcalChart();
   $('#mChart').innerHTML=macroChart();
